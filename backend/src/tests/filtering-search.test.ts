@@ -38,9 +38,9 @@ describe("Issues Filtering and Search", () => {
     });
     const bugTag = await createTestTag({ name: "bug", color: "#ef4444" });
 
-    frontendTagId = frontendTag.id;
-    backendTagId = backendTag.id;
-    bugTagId = bugTag.id;
+    frontendTagId = frontendTag.id as number;
+    backendTagId = backendTag.id as number;
+    bugTagId = bugTag.id as number;
 
     // Create test issues with various combinations
     const issue1 = await createTestIssue({
