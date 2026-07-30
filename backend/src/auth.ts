@@ -1,6 +1,5 @@
 import { betterAuth } from "better-auth";
 import { apiKey } from "@better-auth/api-key";
-import Database from "better-sqlite3";
 import { Pool } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,7 +12,7 @@ const trustedOrigins = process.env.TRUSTED_ORIGINS
   ? process.env.TRUSTED_ORIGINS.split(",").map((s) => s.trim())
   : ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"];
 
-const getDatabaseConfig = () => {
+const getDatabaseConfig = async () => {
   if (process.env.DATABASE_URL) {
     console.log("BetterAuth using PostgreSQL");
     return new Pool({
@@ -21,13 +20,14 @@ const getDatabaseConfig = () => {
     });
   }
 
+  const { default: Database } = await import("better-sqlite3");
   const dbPath = path.resolve(__dirname, "..", "database.sqlite");
   console.log("BetterAuth using SQLite at:", dbPath);
   return new Database(dbPath);
 };
 
-const authConfig = {
-  database: getDatabaseConfig(),
+const authInstance = await betterAuth({
+  database: await getDatabaseConfig(),
   baseURL,
   emailAndPassword: {
     enabled: true,
@@ -39,9 +39,7 @@ const authConfig = {
       enableMetadata: true,
     }),
   ],
-};
-
-const authInstance = betterAuth(authConfig);
+});
 
 export const auth = {
   handler: authInstance.handler,
