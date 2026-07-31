@@ -317,38 +317,43 @@ export async function buildApp(
     }
   });
 
-  // Debug: test queries step by step
+  // Debug: test query execution directly
   fastify.get("/api/db/debug", async function handler(request, reply) {
     try {
-      const { getDatabase } = await import("./db/database.js");
-      const db = await getDatabase();
+      const { Pool } = await import("pg");
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
       const results: any[] = [];
-      const queries = [
-        'DELETE FROM issue_tags',
-        'DELETE FROM issues',
-        'DELETE FROM tags',
-        'DELETE FROM session',
-        'DELETE FROM account',
-        'DELETE FROM verification',
-        'DELETE FROM "user"',
-        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6)',
-      ];
-      for (const sql of queries) {
+
+      async function test(label: string, sql: string, params?: any[]) {
         try {
-          await db.run(sql, ["debug-id", "debug@test.com", "Debug", 0, new Date().toISOString(), new Date().toISOString()]);
-          results.push({ sql: sql.substring(0, 50), status: "ok" });
+          await pool.query(sql, params || []);
+          results.push({ label, status: "ok" });
         } catch (e: any) {
-          results.push({ sql: sql.substring(0, 50), status: "error", error: e.message });
-          break;
+          results.push({ label, status: "error", error: e.message });
         }
       }
-      await db.close();
+
+      await test("SELECT 1", "SELECT 1");
+      await test("DEL issue_tags", "DELETE FROM issue_tags");
+      await test("DEL issues", "DELETE FROM issues");
+      await test("DEL tags", "DELETE FROM tags");
+      await test("DEL session", "DELETE FROM session");
+      await test("DEL account", "DELETE FROM account");
+      await test("DEL verification", "DELETE FROM verification");
+      await test('DEL user', 'DELETE FROM "user"');
+      await test("INSERT user", 
+        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6)',
+        ["debug-id", "debug@test.com", "Debug", false, new Date(), new Date()]
+      );
+      await test("INSERT user with RETURNING",
+        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        ["debug2-id", "debug2@test.com", "Debug2", false, new Date(), new Date()]
+      );
+
+      await pool.end();
       return { success: true, data: results };
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : "Failed",
-      });
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
