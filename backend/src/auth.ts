@@ -33,6 +33,12 @@ const authInstance = await betterAuth({
     enabled: true,
   },
   trustedOrigins,
+  advanced: {
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true,
+    },
+  },
   plugins: [
     apiKey({
       defaultPrefix: "issues_",
