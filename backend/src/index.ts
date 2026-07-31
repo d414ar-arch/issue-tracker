@@ -317,45 +317,7 @@ export async function buildApp(
     }
   });
 
-  // Debug: test query execution
-  fastify.get("/api/db/debug", async function handler(request, reply) {
-    try {
-      const { PostgresDatabase } = await import("./db/pg-database.js");
-      const db = new PostgresDatabase();
-      const results: any[] = [];
 
-      async function test(label: string, sql: string, params?: any[]) {
-        try {
-          const r = await db.run(sql, params);
-          results.push({ label, status: "ok", lastID: r.lastID });
-        } catch (e: any) {
-          results.push({ label, status: "error", error: e.message, stack: e.stack?.split('\n')[0] });
-        }
-      }
-
-      await test("SELECT 1", "SELECT 1");
-      await test("DEL issue_tags", "DELETE FROM issue_tags");
-      await test("DEL issues", "DELETE FROM issues");
-      await test("DEL tags", "DELETE FROM tags");
-      await test("DEL session", "DELETE FROM session");
-      await test("DEL account", "DELETE FROM account");
-      await test("DEL verification", "DELETE FROM verification");
-      await test('DEL user', 'DELETE FROM "user"');
-      await test("INSERT user", 
-        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?)',
-        ["debug3-id", "debug3@test.com", "Debug3", 0, new Date(), new Date()]
-      );
-      await test("INSERT user bool", 
-        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?)',
-        ["debug4-id", "debug4@test.com", "Debug4", false, new Date(), new Date()]
-      );
-
-      await db.close();
-      return { success: true, data: results };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
-    }
-  });
 
   return fastify;
 }
