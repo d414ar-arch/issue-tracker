@@ -302,6 +302,20 @@ export async function buildApp(
     return { status: "ok", timestamp: new Date().toISOString() };
   });
 
+  // Seed endpoint (only available in non-production or with special header)
+  fastify.post("/api/db/seed", async function handler(request, reply) {
+    try {
+      const { seedDatabase } = await import("./db/seed.js");
+      await seedDatabase();
+      return { success: true, message: "Database seeded successfully" };
+    } catch (error) {
+      return reply.status(500).send({
+        success: false,
+        error: error instanceof Error ? error.message : "Seed failed",
+      });
+    }
+  });
+
   return fastify;
 }
 

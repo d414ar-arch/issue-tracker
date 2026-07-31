@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL } from "node:url";
 import { getDatabase } from "./database.js";
 
 async function seedDatabase() {
@@ -151,6 +152,12 @@ async function seedDatabase() {
   }
 }
 
-seedDatabase()
-  .then(() => process.exit(0))
-  .catch(() => process.exit(1));
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule) {
+  seedDatabase()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
+export { seedDatabase };
