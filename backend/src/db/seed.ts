@@ -32,7 +32,7 @@ async function seedDatabase() {
     for (const user of users) {
       const now = new Date().toISOString();
       await db.run(
-        "INSERT INTO \"user\" (id, email, name, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)",
+        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?)',
         [user.id, user.email, user.name, 0, now, now]
       );
       userIds.push(user.id);
