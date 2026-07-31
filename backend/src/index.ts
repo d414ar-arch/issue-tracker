@@ -302,7 +302,7 @@ export async function buildApp(
     return { status: "ok", timestamp: new Date().toISOString() };
   });
 
-  // Seed endpoint (only available in non-production or with special header)
+  // Seed endpoint
   fastify.post("/api/db/seed", async function handler(request, reply) {
     try {
       const { seedDatabase } = await import("./db/seed.js");
@@ -312,6 +312,25 @@ export async function buildApp(
       return reply.status(500).send({
         success: false,
         error: error instanceof Error ? error.message : "Seed failed",
+        details: error instanceof Error ? error.stack : undefined,
+      });
+    }
+  });
+
+  // Debug: show user table structure
+  fastify.get("/api/db/schema", async function handler(request, reply) {
+    try {
+      const { getDatabase } = await import("./db/database.js");
+      const db = await getDatabase();
+      const columns = await db.all(
+        `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'user' ORDER BY ordinal_position`
+      );
+      await db.close();
+      return { success: true, data: columns };
+    } catch (error) {
+      return reply.status(500).send({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed",
       });
     }
   });
