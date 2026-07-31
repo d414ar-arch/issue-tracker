@@ -1,5 +1,3 @@
-import sqlite3 from "sqlite3";
-import { promisify } from "util";
 import path from "path";
 import { fileURLToPath } from "url";
 import { DatabaseError } from "../middleware/errorHandler.js";
@@ -12,13 +10,13 @@ const DB_PATH = path.resolve(__dirname, "..", "..", "database.sqlite");
 export type { Database, RunResult };
 
 class SQLiteDatabase implements Database {
-  private db: sqlite3.Database;
+  private db: any;
   public run: (sql: string, params?: any[]) => Promise<RunResult>;
   public get: (sql: string, params?: any[]) => Promise<any>;
   public all: (sql: string, params?: any[]) => Promise<any[]>;
   public close: () => Promise<void>;
 
-  constructor(db: sqlite3.Database) {
+  constructor(db: any) {
     this.db = db;
     this.run = promisify(db.run.bind(db));
     this.get = promisify(db.get.bind(db));
@@ -39,9 +37,23 @@ class SQLiteDatabase implements Database {
   }
 }
 
-function createSQLiteDatabase(): Promise<Database> {
+function promisify(fn: Function): (...args: any[]) => Promise<any> {
+  return function (this: any, ...args: any[]) {
+    return new Promise((resolve, reject) => {
+      fn.call(this, ...args, (err: Error | null, result: any) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+  };
+}
+
+async function createSQLiteDatabase(): Promise<Database> {
+  const { default: init } = await import("sqlite3");
+  const { promisify: utilPromisify } = await import("util");
+
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH, (err) => {
+    const db = new init.Database(DB_PATH, (err: Error | null) => {
       if (err) {
         reject(
           new DatabaseError(`Failed to connect to database: ${err.message}`, {
@@ -50,7 +62,7 @@ function createSQLiteDatabase(): Promise<Database> {
           })
         );
       } else {
-        db.run("PRAGMA foreign_keys = ON", (pragmaErr) => {
+        db.run("PRAGMA foreign_keys = ON", (pragmaErr: Error | null) => {
           if (pragmaErr) {
             reject(
               new DatabaseError(

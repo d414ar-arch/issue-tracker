@@ -1,4 +1,3 @@
-import sqlite3 from "sqlite3";
 import { promisify } from "util";
 import fs from "fs";
 import path from "path";
@@ -12,18 +11,18 @@ const DB_PATH = path.resolve(__dirname, "..", "..", "database.sqlite");
 export type { Database, RunResult };
 
 export class DatabaseConnection implements Database {
-  private db: sqlite3.Database;
+  private db: any;
   public run: (sql: string, params?: any[]) => Promise<RunResult>;
   public get: (sql: string, params?: any[]) => Promise<any>;
   public all: (sql: string, params?: any[]) => Promise<any[]>;
   public close: () => Promise<void>;
 
-  constructor(db: sqlite3.Database) {
+  constructor(db: any) {
     this.db = db;
 
     this.run = (sql: string, params?: any[]) => {
       return new Promise((resolve, reject) => {
-        this.db.run(sql, params || [], function (err) {
+        this.db.run(sql, params || [], function (this: any, err: Error) {
           if (err) {
             reject(err);
           } else {
@@ -60,8 +59,9 @@ async function createPostgresDatabase(): Promise<Database> {
 }
 
 async function createSQLiteDatabase(): Promise<Database> {
+  const { default: sqlite3 } = await import("sqlite3");
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH, (err) => {
+    const db = new sqlite3.Database(DB_PATH, (err: Error | null) => {
       if (err) {
         console.error("Error opening database:", err);
         reject(err);
