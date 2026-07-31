@@ -33,7 +33,7 @@ async function seedDatabase() {
       const now = new Date().toISOString();
       await db.run(
         'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?)',
-        [user.id, user.email, user.name, 0, now, now]
+        [user.id, user.email, user.name, false, new Date(), new Date()]
       );
       userIds.push(user.id);
       console.log(`Created user: ${user.name} (${user.email})`);

@@ -317,19 +317,19 @@ export async function buildApp(
     }
   });
 
-  // Debug: test query execution directly
+  // Debug: test query execution
   fastify.get("/api/db/debug", async function handler(request, reply) {
     try {
-      const { Pool } = await import("pg");
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      const { PostgresDatabase } = await import("./db/pg-database.js");
+      const db = new PostgresDatabase();
       const results: any[] = [];
 
       async function test(label: string, sql: string, params?: any[]) {
         try {
-          await pool.query(sql, params || []);
-          results.push({ label, status: "ok" });
+          const r = await db.run(sql, params);
+          results.push({ label, status: "ok", lastID: r.lastID });
         } catch (e: any) {
-          results.push({ label, status: "error", error: e.message });
+          results.push({ label, status: "error", error: e.message, stack: e.stack?.split('\n')[0] });
         }
       }
 
@@ -342,15 +342,15 @@ export async function buildApp(
       await test("DEL verification", "DELETE FROM verification");
       await test('DEL user', 'DELETE FROM "user"');
       await test("INSERT user", 
-        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6)',
-        ["debug-id", "debug@test.com", "Debug", false, new Date(), new Date()]
+        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?)',
+        ["debug3-id", "debug3@test.com", "Debug3", 0, new Date(), new Date()]
       );
-      await test("INSERT user with RETURNING",
-        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-        ["debug2-id", "debug2@test.com", "Debug2", false, new Date(), new Date()]
+      await test("INSERT user bool", 
+        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?)',
+        ["debug4-id", "debug4@test.com", "Debug4", false, new Date(), new Date()]
       );
 
-      await pool.end();
+      await db.close();
       return { success: true, data: results };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
