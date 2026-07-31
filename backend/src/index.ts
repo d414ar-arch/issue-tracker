@@ -317,16 +317,33 @@ export async function buildApp(
     }
   });
 
-  // Debug: show user table structure
-  fastify.get("/api/db/schema", async function handler(request, reply) {
+  // Debug: test queries step by step
+  fastify.get("/api/db/debug", async function handler(request, reply) {
     try {
       const { getDatabase } = await import("./db/database.js");
       const db = await getDatabase();
-      const columns = await db.all(
-        `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'user' ORDER BY ordinal_position`
-      );
+      const results: any[] = [];
+      const queries = [
+        'DELETE FROM issue_tags',
+        'DELETE FROM issues',
+        'DELETE FROM tags',
+        'DELETE FROM session',
+        'DELETE FROM account',
+        'DELETE FROM verification',
+        'DELETE FROM "user"',
+        'INSERT INTO "user" ("id", "email", "name", "emailVerified", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6)',
+      ];
+      for (const sql of queries) {
+        try {
+          await db.run(sql, ["debug-id", "debug@test.com", "Debug", 0, new Date().toISOString(), new Date().toISOString()]);
+          results.push({ sql: sql.substring(0, 50), status: "ok" });
+        } catch (e: any) {
+          results.push({ sql: sql.substring(0, 50), status: "error", error: e.message });
+          break;
+        }
+      }
       await db.close();
-      return { success: true, data: columns };
+      return { success: true, data: results };
     } catch (error) {
       return reply.status(500).send({
         success: false,
