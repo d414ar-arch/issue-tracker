@@ -161,8 +161,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           cu.name as created_by_user_name,
           cu.email as created_by_user_email
         FROM issues i
-        LEFT JOIN user au ON i.assigned_user_id = au.id
-        LEFT JOIN user cu ON i.created_by_user_id = cu.id
+        LEFT JOIN "user" au ON i.assigned_user_id = au.id
+        LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
         ${whereClause}
         ORDER BY i.updated_at DESC, i.created_at DESC
         LIMIT ? OFFSET ?
@@ -310,7 +310,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         // Validate assigned user exists if provided
         if (assigned_user_id) {
-          const userExists = await db.get("SELECT id FROM user WHERE id = ?", [
+          const userExists = await db.get('SELECT id FROM "user" WHERE id = ?', [
             assigned_user_id,
           ]);
           if (!userExists) {
@@ -396,8 +396,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           cu.name as created_by_user_name,
           cu.email as created_by_user_email
         FROM issues i
-        LEFT JOIN user au ON i.assigned_user_id = au.id
-        LEFT JOIN user cu ON i.created_by_user_id = cu.id
+        LEFT JOIN "user" au ON i.assigned_user_id = au.id
+        LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
         WHERE i.id = ?
       `,
           [issueId]
@@ -485,8 +485,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           cu.name as created_by_user_name,
           cu.email as created_by_user_email
         FROM issues i
-        LEFT JOIN user au ON i.assigned_user_id = au.id
-        LEFT JOIN user cu ON i.created_by_user_id = cu.id
+        LEFT JOIN "user" au ON i.assigned_user_id = au.id
+        LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
         WHERE i.id = ?
       `,
           [issueId]
@@ -641,7 +641,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
         }
 
         if (assigned_user_id !== undefined && assigned_user_id !== null) {
-          const userExists = await db.get("SELECT id FROM user WHERE id = ?", [
+          const userExists = await db.get('SELECT id FROM "user" WHERE id = ?', [
             assigned_user_id,
           ]);
           if (!userExists) {
@@ -740,8 +740,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           cu.name as created_by_user_name,
           cu.email as created_by_user_email
         FROM issues i
-        LEFT JOIN user au ON i.assigned_user_id = au.id
-        LEFT JOIN user cu ON i.created_by_user_id = cu.id
+        LEFT JOIN "user" au ON i.assigned_user_id = au.id
+        LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
         WHERE i.id = ?
       `,
           [issueId]

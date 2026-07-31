@@ -40,8 +40,8 @@ const usersRoute: FastifyPluginAsync = async function (fastify) {
 
       // Get users from the BetterAuth user table
       const users = await db.all(`
-        SELECT id, name, email, emailVerified, image, createdAt, updatedAt 
-        FROM user 
+        SELECT id, name, email, "emailVerified", image, "createdAt", "updatedAt" 
+        FROM "user" 
         ORDER BY name ASC
       `);
 
@@ -73,8 +73,8 @@ const usersRoute: FastifyPluginAsync = async function (fastify) {
 
         const user = await db.get(
           `
-        SELECT id, name, email, emailVerified, image, createdAt, updatedAt 
-        FROM user 
+        SELECT id, name, email, "emailVerified", image, "createdAt", "updatedAt" 
+        FROM "user" 
         WHERE id = ?
       `,
           [id]
