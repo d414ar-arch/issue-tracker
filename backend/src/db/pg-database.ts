@@ -60,11 +60,11 @@ export class PostgresDatabase implements Database {
     try {
       if (isInsert(sql)) {
         const result = await client.query(
-          `${convertedSql} RETURNING id`,
+          `${convertedSql} RETURNING *`,
           params || []
         );
         return {
-          lastID: result.rows[0]?.id ?? null,
+          lastID: (result.rows[0] as any)?.id ?? null,
           changes: result.rowCount ?? 0,
         };
       }
