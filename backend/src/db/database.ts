@@ -84,7 +84,27 @@ export async function createDatabase(): Promise<Database> {
 
 export async function runMigrations(): Promise<void> {
   if (process.env.DATABASE_URL) {
-    console.log("PostgreSQL migrations are managed by running the SQL files directly.");
+    console.log("Running PostgreSQL migrations...");
+    const db = await createPostgresDatabase();
+    try {
+      const migrationsPgDir = path.join(__dirname, "migrations-pg");
+      const migrationFiles = fs
+        .readdirSync(migrationsPgDir)
+        .filter((file) => file.endsWith(".sql"))
+        .sort();
+      for (const file of migrationFiles) {
+        const filePath = path.join(migrationsPgDir, file);
+        const sql = fs.readFileSync(filePath, "utf8");
+        console.log(`Running migration: ${file}`);
+        await db.run(sql);
+      }
+      console.log("All PostgreSQL migrations completed successfully!");
+    } catch (error) {
+      console.error("Error running migrations:", error);
+      throw error;
+    } finally {
+      await db.close();
+    }
     return;
   }
 
