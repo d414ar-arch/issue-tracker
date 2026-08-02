@@ -2,6 +2,11 @@ import { z } from "zod";
 
 export default function apiBasedTools(server) {
   const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3000/api";
+const DEFAULT_API_KEY = process.env.API_KEY || "";
+
+function resolveKey(apiKey) {
+  return apiKey || DEFAULT_API_KEY;
+}
 
   // Helper function to make HTTP requests
   async function makeRequest(method, url, data = null, options = {}) {
@@ -79,7 +84,7 @@ export default function apiBasedTools(server) {
           .string()
           .optional()
           .describe("Filter by creator user ID"),
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async (params) => {
@@ -97,7 +102,7 @@ export default function apiBasedTools(server) {
       }`;
 
       const result = await makeRequest("GET", url, null, {
-        headers: { "x-api-key": apiKey },
+        headers: { "x-api-key": resolveKey(apiKey) },
       });
 
       return {
@@ -129,7 +134,7 @@ export default function apiBasedTools(server) {
           .describe("Issue priority"),
         assigned_user_id: z.string().optional().describe("Assigned user ID"),
         tag_ids: z.array(z.number()).optional().describe("Array of tag IDs"),
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async (params) => {
@@ -139,7 +144,7 @@ export default function apiBasedTools(server) {
         "POST",
         `${API_BASE_URL}/issues`,
         issueData,
-        { headers: { "x-api-key": apiKey } }
+        { headers: { "x-api-key": resolveKey(apiKey) } }
       );
 
       return {
@@ -160,7 +165,7 @@ export default function apiBasedTools(server) {
       description: "Get a specific issue by its ID",
       inputSchema: {
         id: z.number().describe("Issue ID"),
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async ({ id, apiKey }) => {
@@ -168,7 +173,7 @@ export default function apiBasedTools(server) {
         "GET",
         `${API_BASE_URL}/issues/${id}`,
         null,
-        { headers: { "x-api-key": apiKey } }
+        { headers: { "x-api-key": resolveKey(apiKey) } }
       );
 
       return {
@@ -201,7 +206,7 @@ export default function apiBasedTools(server) {
           .describe("Issue priority"),
         assigned_user_id: z.string().optional().describe("Assigned user ID"),
         tag_ids: z.array(z.number()).optional().describe("Array of tag IDs"),
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async (params) => {
@@ -211,7 +216,7 @@ export default function apiBasedTools(server) {
         "PUT",
         `${API_BASE_URL}/issues/${id}`,
         updateData,
-        { headers: { "x-api-key": apiKey } }
+        { headers: { "x-api-key": resolveKey(apiKey) } }
       );
 
       return {
@@ -232,7 +237,7 @@ export default function apiBasedTools(server) {
       description: "Delete an issue by ID",
       inputSchema: {
         id: z.number().describe("Issue ID"),
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async ({ id, apiKey }) => {
@@ -240,7 +245,7 @@ export default function apiBasedTools(server) {
         "DELETE",
         `${API_BASE_URL}/issues/${id}`,
         null,
-        { headers: { "x-api-key": apiKey } }
+        { headers: { "x-api-key": resolveKey(apiKey) } }
       );
 
       return {
@@ -262,12 +267,12 @@ export default function apiBasedTools(server) {
       title: "List Tags",
       description: "Get all available tags",
       inputSchema: {
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async ({ apiKey }) => {
       const result = await makeRequest("GET", `${API_BASE_URL}/tags`, null, {
-        headers: { "x-api-key": apiKey },
+        headers: { "x-api-key": resolveKey(apiKey) },
       });
 
       return {
@@ -289,7 +294,7 @@ export default function apiBasedTools(server) {
       inputSchema: {
         name: z.string().describe("Tag name"),
         color: z.string().describe("Tag color (hex format)"),
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async (params) => {
@@ -299,7 +304,7 @@ export default function apiBasedTools(server) {
         "POST",
         `${API_BASE_URL}/tags`,
         tagData,
-        { headers: { "x-api-key": apiKey } }
+        { headers: { "x-api-key": resolveKey(apiKey) } }
       );
 
       return {
@@ -320,7 +325,7 @@ export default function apiBasedTools(server) {
       description: "Delete a tag by ID",
       inputSchema: {
         id: z.number().describe("Tag ID"),
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async ({ id, apiKey }) => {
@@ -328,7 +333,7 @@ export default function apiBasedTools(server) {
         "DELETE",
         `${API_BASE_URL}/tags/${id}`,
         null,
-        { headers: { "x-api-key": apiKey } }
+        { headers: { "x-api-key": resolveKey(apiKey) } }
       );
 
       return {
@@ -350,12 +355,12 @@ export default function apiBasedTools(server) {
       title: "List Users",
       description: "Get all users",
       inputSchema: {
-        apiKey: z.string().describe("API key for authentication"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
     async ({ apiKey }) => {
       const result = await makeRequest("GET", `${API_BASE_URL}/users`, null, {
-        headers: { "x-api-key": apiKey },
+        headers: { "x-api-key": resolveKey(apiKey) },
       });
 
       return {
