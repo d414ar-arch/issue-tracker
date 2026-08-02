@@ -1,0 +1,14 @@
+{
+  "name": "issues-tracker-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for the Issue Tracker API",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "zod": "^3.24.0"
+  }
+}

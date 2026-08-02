@@ -1,6 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import sqlite3 from "sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 import apiBasedTools from "./api-based-tools.js";
@@ -29,28 +28,42 @@ server.registerResource(
   async (uri) => {
     const dbPath = path.join(__dirname, "..", "backend", "database.sqlite");
 
-    const schema = await new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY);
+    try {
+      const { default: sqlite3 } = await import("sqlite3");
+      const schema = await new Promise((resolve, reject) => {
+        const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY);
 
-      db.all(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL ORDER BY name",
-        (err, rows) => {
-          db.close();
-          if (err) reject(err);
-          else resolve(rows.map((row) => row.sql + ";").join("\n"));
-        }
-      );
-    });
+        db.all(
+          "SELECT sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL ORDER BY name",
+          (err, rows) => {
+            db.close();
+            if (err) reject(err);
+            else resolve(rows.map((row) => row.sql + ";").join("\n"));
+          }
+        );
+      });
 
-    return {
-      contents: [
-        {
-          uri: uri.href,
-          mimeType: "text/plain",
-          text: schema,
-        },
-      ],
-    };
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: schema,
+          },
+        ],
+      };
+    } catch (error) {
+      // sqlite3 not installed — this resource is only for local SQLite development
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: "Local SQLite schema is only available when sqlite3 is installed in mcp/node_modules. For the online (PostgreSQL) platform, use the API tools instead.",
+          },
+        ],
+      };
+    }
   }
 );
 
