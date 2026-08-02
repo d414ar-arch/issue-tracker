@@ -7,6 +7,7 @@ import { PostgresDatabase, Database, RunResult } from "./pg-database.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DB_PATH = path.resolve(__dirname, "..", "..", "database.sqlite");
+const BACKEND_ROOT = path.resolve(__dirname, "..", "..");
 
 export type { Database, RunResult };
 
@@ -87,7 +88,12 @@ export async function runMigrations(): Promise<void> {
     console.log("Running PostgreSQL migrations...");
     const db = await createPostgresDatabase();
     try {
-      const migrationsPgDir = path.join(__dirname, "migrations-pg");
+      const migrationsPgDir = path.join(
+        BACKEND_ROOT,
+        "src",
+        "db",
+        "migrations-pg"
+      );
       const migrationFiles = fs
         .readdirSync(migrationsPgDir)
         .filter((file) => file.endsWith(".sql"))
@@ -113,7 +119,7 @@ export async function runMigrations(): Promise<void> {
   try {
     await db.run("PRAGMA foreign_keys = ON");
 
-    const migrationsDir = path.join(__dirname, "migrations");
+    const migrationsDir = path.join(BACKEND_ROOT, "src", "db", "migrations");
     const migrationFiles = fs
       .readdirSync(migrationsDir)
       .filter((file) => file.endsWith(".sql"))
