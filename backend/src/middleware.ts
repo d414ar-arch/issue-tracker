@@ -26,6 +26,49 @@ function convertHeaders(requestHeaders: FastifyRequest["headers"]): Headers {
   return headers;
 }
 
+async function authenticateWithApiKey(
+  request: AuthenticatedRequest
+): Promise<boolean> {
+  const apiKey = request.headers["x-api-key"];
+  if (typeof apiKey !== "string" || !apiKey) {
+    return false;
+  }
+
+  try {
+    const result = await auth.api.verifyApiKey({
+      body: { key: apiKey },
+    });
+
+    if (result?.valid && result.key?.referenceId) {
+      const { getDatabase } = await import("./db/database.js");
+      const db = await getDatabase();
+      try {
+        const user = await db.get(
+          'SELECT id, name, email, "emailVerified" as "emailVerified", image, "createdAt" as "createdAt", "updatedAt" as "updatedAt" FROM "user" WHERE id = ?',
+          [result.key.referenceId]
+        );
+        if (user) {
+          request.user = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            emailVerified: !!user.emailVerified,
+            image: user.image ?? null,
+            createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
+            updatedAt: user.updatedAt ? new Date(user.updatedAt) : new Date(),
+          };
+          return true;
+        }
+      } finally {
+        await db.close();
+      }
+    }
+  } catch (error) {
+    console.error("API key verification error:", error);
+  }
+  return false;
+}
+
 export async function authMiddleware(
   request: AuthenticatedRequest,
   reply: FastifyReply
@@ -38,18 +81,24 @@ export async function authMiddleware(
       headers: headers,
     });
 
-    if (!session?.user) {
-      return reply.status(401).send({
-        error: "Unauthorized",
-        message: "Authentication required",
-      });
+    if (session?.user) {
+      // Attach user to request
+      request.user = {
+        ...session.user,
+        image: session.user.image ?? null,
+      };
+      return;
     }
 
-    // Attach user to request
-    request.user = {
-      ...session.user,
-      image: session.user.image ?? null,
-    };
+    // Fall back to API key authentication
+    if (await authenticateWithApiKey(request)) {
+      return;
+    }
+
+    return reply.status(401).send({
+      error: "Unauthorized",
+      message: "Authentication required",
+    });
   } catch (error) {
     console.error("Auth middleware error:", error);
     return reply.status(401).send({
