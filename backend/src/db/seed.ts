@@ -14,6 +14,7 @@ async function seedDatabase() {
     await db.run("DELETE FROM session");
     await db.run("DELETE FROM account");
     await db.run("DELETE FROM verification");
+    await db.run('DELETE FROM "apikey"');
     await db.run("DELETE FROM \"user\"");
 
     if (process.env.DATABASE_URL) {
