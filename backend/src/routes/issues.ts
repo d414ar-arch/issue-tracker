@@ -2,12 +2,26 @@ import { FastifyPluginAsync } from "fastify";
 import { getDatabase } from "../db/database.js";
 import { authMiddleware, AuthenticatedRequest } from "../middleware.js";
 
+export type IssueStatus = "not_started" | "in_progress" | "review" | "testing" | "done" | "blocked";
+
+export const VALID_STATUSES: IssueStatus[] = [
+  "not_started",
+  "in_progress",
+  "review",
+  "testing",
+  "done",
+  "blocked",
+];
+
+export const VALID_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+
 export interface Issue {
   id: number;
   title: string;
   description: string | null;
-  status: "not_started" | "in_progress" | "done";
+  status: IssueStatus;
   priority: "low" | "medium" | "high" | "urgent";
+  sort_order: number;
   assigned_user_id: string | null;
   created_by_user_id: string;
   created_at: string;
@@ -33,8 +47,9 @@ export interface Issue {
 export interface CreateIssueRequest {
   title: string;
   description?: string;
-  status?: "not_started" | "in_progress" | "done";
+  status?: IssueStatus;
   priority?: "low" | "medium" | "high" | "urgent";
+  sort_order?: number;
   assigned_user_id?: string;
   tag_ids?: number[];
 }
@@ -42,8 +57,9 @@ export interface CreateIssueRequest {
 export interface UpdateIssueRequest {
   title?: string;
   description?: string;
-  status?: "not_started" | "in_progress" | "done";
+  status?: IssueStatus;
   priority?: "low" | "medium" | "high" | "urgent";
+  sort_order?: number;
   assigned_user_id?: string;
   tag_ids?: number[];
 }
@@ -152,6 +168,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           i.description,
           i.status,
           i.priority,
+          i.sort_order,
           i.assigned_user_id,
           i.created_by_user_id,
           i.created_at,
@@ -164,7 +181,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
         LEFT JOIN "user" au ON i.assigned_user_id = au.id
         LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
         ${whereClause}
-        ORDER BY i.updated_at DESC, i.created_at DESC
+        ORDER BY i.sort_order ASC, i.updated_at DESC, i.created_at DESC
         LIMIT ? OFFSET ?
       `;
 
@@ -211,6 +228,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           description: issue.description,
           status: issue.status,
           priority: issue.priority,
+          sort_order: issue.sort_order ?? 0,
           assigned_user_id: issue.assigned_user_id,
           created_by_user_id: issue.created_by_user_id,
           created_at: issue.created_at,
@@ -272,6 +290,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           description,
           status = "not_started",
           priority = "medium",
+          sort_order,
           assigned_user_id,
           tag_ids = [],
         } = request.body;
@@ -286,17 +305,16 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
         }
 
         // Validate status
-        const validStatuses = ["not_started", "in_progress", "done"];
-        if (!validStatuses.includes(status)) {
+        if (!VALID_STATUSES.includes(status)) {
           return reply.status(400).send({
             success: false,
             error: "Validation error",
-            message: `Status must be one of: ${validStatuses.join(", ")}`,
+            message: `Status must be one of: ${VALID_STATUSES.join(", ")}`,
           });
         }
 
         // Validate priority
-        const validPriorities = ["low", "medium", "high", "urgent"];
+        const validPriorities = [...VALID_PRIORITIES];
         if (!validPriorities.includes(priority)) {
           return reply.status(400).send({
             success: false,
@@ -353,12 +371,13 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         // Create the issue
         const result = await db.run(
-          `INSERT INTO issues (title, description, status, assigned_user_id, created_by_user_id, priority) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO issues (title, description, status, sort_order, assigned_user_id, created_by_user_id, priority) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             trimmedTitle,
             description || null,
             status,
+            sort_order ?? 0,
             assigned_user_id || null,
             currentUser.id,
             priority || "medium",
@@ -387,6 +406,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           i.description,
           i.status,
           i.priority,
+          i.sort_order,
           i.assigned_user_id,
           i.created_by_user_id,
           i.created_at,
@@ -419,6 +439,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         const formattedIssue = {
           ...newIssue,
+          sort_order: newIssue.sort_order ?? 0,
           assigned_user: newIssue.assigned_user_id
             ? {
                 id: newIssue.assigned_user_id,
@@ -476,6 +497,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           i.description,
           i.status,
           i.priority,
+          i.sort_order,
           i.assigned_user_id,
           i.created_by_user_id,
           i.created_at,
@@ -517,6 +539,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         const formattedIssue = {
           ...issue,
+          sort_order: issue.sort_order ?? 0,
           assigned_user: issue.assigned_user_id
             ? {
                 id: issue.assigned_user_id,
@@ -568,6 +591,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           description,
           status,
           priority,
+          sort_order,
           assigned_user_id,
           tag_ids,
         } = request.body;
@@ -578,6 +602,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           description === undefined &&
           !status &&
           !priority &&
+          sort_order === undefined &&
           assigned_user_id === undefined &&
           !tag_ids
         ) {
@@ -617,19 +642,18 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
         }
 
         if (status !== undefined) {
-          const validStatuses = ["not_started", "in_progress", "done"];
-          if (!validStatuses.includes(status)) {
+          if (!VALID_STATUSES.includes(status)) {
             await db.close();
             return reply.status(400).send({
               success: false,
               error: "Validation error",
-              message: `Status must be one of: ${validStatuses.join(", ")}`,
+              message: `Status must be one of: ${VALID_STATUSES.join(", ")}`,
             });
           }
         }
 
         if (priority !== undefined) {
-          const validPriorities = ["low", "medium", "high", "urgent"];
+          const validPriorities = [...VALID_PRIORITIES];
           if (!validPriorities.includes(priority)) {
             await db.close();
             return reply.status(400).send({
@@ -690,6 +714,10 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           updateFields.push("priority = ?");
           updateParams.push(priority);
         }
+        if (sort_order !== undefined) {
+          updateFields.push("sort_order = ?");
+          updateParams.push(sort_order);
+        }
         if (assigned_user_id !== undefined) {
           updateFields.push("assigned_user_id = ?");
           updateParams.push(assigned_user_id);
@@ -731,6 +759,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           i.description,
           i.status,
           i.priority,
+          i.sort_order,
           i.assigned_user_id,
           i.created_by_user_id,
           i.created_at,
@@ -763,6 +792,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         const formattedIssue = {
           ...updatedIssue,
+          sort_order: updatedIssue.sort_order ?? 0,
           assigned_user: updatedIssue.assigned_user_id
             ? {
                 id: updatedIssue.assigned_user_id,

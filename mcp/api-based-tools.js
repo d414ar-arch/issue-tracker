@@ -59,7 +59,7 @@ function resolveKey(apiKey) {
       description: "Get a list of issues with optional filtering",
       inputSchema: {
         status: z
-          .enum(["not_started", "in_progress", "done"])
+          .enum(["not_started", "in_progress", "review", "testing", "done", "blocked"])
           .optional()
           .describe("Filter by status"),
         assigned_user_id: z
@@ -77,7 +77,7 @@ function resolveKey(apiKey) {
           .optional()
           .describe("Items per page (default: 10, max: 100)"),
         priority: z
-          .enum(["low", "medium", "high"])
+          .enum(["low", "medium", "high", "urgent"])
           .optional()
           .describe("Filter by priority"),
         created_by_user_id: z
@@ -125,7 +125,7 @@ function resolveKey(apiKey) {
         title: z.string().describe("Issue title"),
         description: z.string().optional().describe("Issue description"),
         status: z
-          .enum(["not_started", "in_progress", "done"])
+          .enum(["not_started", "in_progress", "review", "testing", "done", "blocked"])
           .optional()
           .describe("Issue status"),
         priority: z
@@ -197,13 +197,17 @@ function resolveKey(apiKey) {
         title: z.string().optional().describe("Issue title"),
         description: z.string().optional().describe("Issue description"),
         status: z
-          .enum(["not_started", "in_progress", "done"])
+          .enum(["not_started", "in_progress", "review", "testing", "done", "blocked"])
           .optional()
           .describe("Issue status"),
         priority: z
-          .enum(["low", "medium", "high"])
+          .enum(["low", "medium", "high", "urgent"])
           .optional()
           .describe("Issue priority"),
+        sort_order: z
+          .number()
+          .optional()
+          .describe("Position within the status column (kanban ordering)"),
         assigned_user_id: z.string().optional().describe("Assigned user ID"),
         tag_ids: z.array(z.number()).optional().describe("Array of tag IDs"),
         apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
@@ -216,6 +220,68 @@ function resolveKey(apiKey) {
         "PUT",
         `${API_BASE_URL}/issues/${id}`,
         updateData,
+        { headers: { "x-api-key": resolveKey(apiKey) } }
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    }
+  );
+
+  server.registerTool(
+    "issues-move",
+    {
+      title: "Move Issue",
+      description: "Move an issue to a different kanban column (change its status)",
+      inputSchema: {
+        id: z.number().describe("Issue ID"),
+        status: z
+          .enum(["not_started", "in_progress", "review", "testing", "done", "blocked"])
+          .describe("Target status to move the issue to"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
+      },
+    },
+    async ({ id, status, apiKey }) => {
+      const result = await makeRequest(
+        "PUT",
+        `${API_BASE_URL}/issues/${id}`,
+        { status },
+        { headers: { "x-api-key": resolveKey(apiKey) } }
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    }
+  );
+
+  server.registerTool(
+    "issues-reorder",
+    {
+      title: "Reorder Issue",
+      description: "Set the sort position of an issue within its kanban column",
+      inputSchema: {
+        id: z.number().describe("Issue ID"),
+        sort_order: z.number().describe("New sort position (higher = lower on the board)"),
+        apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
+      },
+    },
+    async ({ id, sort_order, apiKey }) => {
+      const result = await makeRequest(
+        "PUT",
+        `${API_BASE_URL}/issues/${id}`,
+        { sort_order },
         { headers: { "x-api-key": resolveKey(apiKey) } }
       );
 

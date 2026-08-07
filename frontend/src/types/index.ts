@@ -28,12 +28,21 @@ export interface Tag {
   updated_at: string;
 }
 
+export type IssueStatus =
+  | "not_started"
+  | "in_progress"
+  | "review"
+  | "testing"
+  | "done"
+  | "blocked";
+
 export interface Issue {
   id: number;
   title: string;
   description: string;
-  status: "not_started" | "in_progress" | "done";
+  status: IssueStatus;
   priority: "low" | "medium" | "high" | "urgent";
+  sort_order: number;
   created_by_user_id: string;
   assigned_user_id?: string;
   created_at: string;

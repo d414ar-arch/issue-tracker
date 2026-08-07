@@ -94,11 +94,12 @@ beforeAll(async () => {
         title TEXT NOT NULL,
         description TEXT,
         status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'review', 'testing', 'done', 'blocked')),
+        priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+        sort_order INTEGER NOT NULL DEFAULT 0,
         assigned_user_id TEXT,
         created_by_user_id TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
         FOREIGN KEY (assigned_user_id) REFERENCES user(id),
         FOREIGN KEY (created_by_user_id) REFERENCES user(id)
       )
@@ -147,6 +148,9 @@ beforeAll(async () => {
     );
     await testDb.run(
       `CREATE INDEX IF NOT EXISTS idx_issues_assigned_to ON issues(assigned_user_id)`
+    );
+    await testDb.run(
+      `CREATE INDEX IF NOT EXISTS idx_issues_sort_order ON issues(status, sort_order)`
     );
   } catch (err) {
     console.error("Error creating test database tables:", err);

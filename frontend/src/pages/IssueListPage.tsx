@@ -172,7 +172,10 @@ export default function IssueListPage() {
                   <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="not_started">Not Started</SelectItem>
                   <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="review">Review</SelectItem>
+                  <SelectItem value="testing">Testing</SelectItem>
                   <SelectItem value="done">Done</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
                 </SelectContent>
               </Select>
             </div>

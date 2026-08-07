@@ -4,6 +4,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import Layout from "@/components/layout/Layout";
 import HomePage from "@/pages/HomePage";
 import IssueListPage from "@/pages/IssueListPage";
+import KanbanBoardPage from "@/pages/KanbanBoardPage";
 import IssueDetailPage from "@/pages/IssueDetailPage";
 import CreateIssuePage from "@/pages/CreateIssuePage";
 import EditIssuePage from "@/pages/EditIssuePage";
@@ -24,6 +25,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <IssueListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/board"
+                element={
+                  <ProtectedRoute>
+                    <KanbanBoardPage />
                   </ProtectedRoute>
                 }
               />

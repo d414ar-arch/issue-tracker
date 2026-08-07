@@ -1,0 +1,58 @@
+#################################################################
+# render.yaml — Issue Tracker Blueprint
+# Defines: backend API (Node web service) + frontend (static site)
+#          + managed Postgres database.
+#
+# ADOPTION NOTES:
+# - Render ADOPTS existing resources by matching `name` exactly.
+#   The names below match the resources already live in the
+#   dashboard (issue-tracker-api, issue-tracker, issue-tracker-db)
+#   so a blueprint sync UPDATES them instead of creating duplicates.
+# - Omitted `plan`/`region` fields: Render retains the current
+#   values of existing resources (safe adoption).
+# - `preDeployCommand` is NOT supported on the free tier, so DB
+#   migrations run inside startCommand on every deploy (they are
+#   idempotent: all SQL files use IF NOT EXISTS).
+# - Existing env vars on a service are PRESERVED even if omitted
+#   here. Only declared values are set/updated.
+# - Secrets (BETTER_AUTH_SECRET, etc.) stay in the dashboard and
+#   are NOT declared here.
+#################################################################
+
+services:
+  # ---------------------------------------------------------------
+  # Backend API — Fastify, listens on $PORT
+  # ---------------------------------------------------------------
+  - type: web
+    name: issue-tracker-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run db:migrate && npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: issue-tracker-db
+          property: connectionString
+
+  # ---------------------------------------------------------------
+  # Frontend — Vite static site (React SPA)
+  # ---------------------------------------------------------------
+  - type: web
+    name: issue-tracker
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    autoDeployTrigger: commit
+    envVars:
+      # Build-time env baked into the bundle. The `/api` suffix is
+      # required and Blueprint has no string interpolation, so this
+      # is pinned to the live API URL.
+      - key: VITE_API_URL
+        value: https://issue-tracker-api-n86q.onrender.com/api
+
+databases:
+  - name: issue-tracker-db

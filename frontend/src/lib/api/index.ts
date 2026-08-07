@@ -131,6 +131,7 @@ export const issuesApi = {
       description: string;
       status: string;
       priority: string;
+      sort_order: number;
       assigned_user_id?: string;
       tag_ids?: number[];
     }>

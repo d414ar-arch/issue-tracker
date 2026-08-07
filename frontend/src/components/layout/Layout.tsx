@@ -14,6 +14,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigation = [
     { name: "Home", href: "/" },
     { name: "Issues", href: "/issues" },
+    { name: "Board", href: "/board" },
   ];
 
   return (

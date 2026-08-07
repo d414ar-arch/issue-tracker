@@ -75,6 +75,38 @@ describe("Issues CRUD Operations", () => {
       expect(data.success).toBe(false);
       expect(data.error.toLowerCase()).toContain("validation");
     });
+
+    it("should create an issue with a kanban status and sort_order", async () => {
+      const newIssue = {
+        title: "Review me",
+        status: "review",
+        sort_order: 5000,
+      };
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/issues",
+        payload: newIssue,
+      });
+
+      expect(response.statusCode).toBe(201);
+      const data = JSON.parse(response.payload);
+      expect(data.success).toBe(true);
+      expect(data.data.status).toBe("review");
+      expect(data.data.sort_order).toBe(5000);
+    });
+
+    it("should reject an invalid kanban status", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/issues",
+        payload: { title: "Bad status", status: "shipped" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const data = JSON.parse(response.payload);
+      expect(data.success).toBe(false);
+    });
   });
 
   describe("READ (GET /api/issues)", () => {
@@ -187,6 +219,31 @@ describe("Issues CRUD Operations", () => {
       expect(data.success).toBe(true);
       expect(data.data.status).toBe("in_progress");
       expect(data.data.priority).toBe("high");
+    });
+
+    it("should update status and sort_order for kanban drag", async () => {
+      const issue = await createTestIssue({
+        title: "Drag me",
+        status: "not_started",
+        created_by_user_id: "test-user-1",
+      });
+
+      const updateData = {
+        status: "testing",
+        sort_order: 2500,
+      };
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/issues/${issue.id}`,
+        payload: updateData,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const data = JSON.parse(response.payload);
+      expect(data.success).toBe(true);
+      expect(data.data.status).toBe("testing");
+      expect(data.data.sort_order).toBe(2500);
     });
 
     it("should return 404 for non-existent issue", async () => {

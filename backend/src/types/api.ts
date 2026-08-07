@@ -36,12 +36,15 @@ export interface Tag {
   color: string;
 }
 
+export type IssueStatus = "not_started" | "in_progress" | "review" | "testing" | "done" | "blocked";
+
 export interface Issue {
   id: number;
   title: string;
   description?: string;
-  status: "not_started" | "in_progress" | "done";
+  status: IssueStatus;
   priority: "low" | "medium" | "high" | "urgent";
+  sort_order: number;
   assigned_user_id?: string;
   created_by_user_id: string;
   created_at: string;
@@ -65,8 +68,9 @@ export interface IssueFilters {
 export interface CreateIssueRequest {
   title: string;
   description?: string;
-  status?: "not_started" | "in_progress" | "done";
+  status?: IssueStatus;
   priority?: "low" | "medium" | "high" | "urgent";
+  sort_order?: number;
   assigned_user_id?: string;
   tag_ids?: number[];
 }
@@ -74,8 +78,9 @@ export interface CreateIssueRequest {
 export interface UpdateIssueRequest {
   title?: string;
   description?: string;
-  status?: "not_started" | "in_progress" | "done";
+  status?: IssueStatus;
   priority?: "low" | "medium" | "high" | "urgent";
+  sort_order?: number;
   assigned_user_id?: string;
   tag_ids?: number[];
 }

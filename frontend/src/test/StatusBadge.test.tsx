@@ -28,6 +28,17 @@ describe('StatusBadge Component', () => {
     expect(screen.getByText('Done')).toBeInTheDocument();
   });
 
+  it('should render kanban status values', () => {
+    const { rerender } = renderWithRouter(<StatusBadge status="review" />);
+    expect(screen.getByText('Review')).toBeInTheDocument();
+
+    rerender(<BrowserRouter><StatusBadge status="testing" /></BrowserRouter>);
+    expect(screen.getByText('Testing')).toBeInTheDocument();
+
+    rerender(<BrowserRouter><StatusBadge status="blocked" /></BrowserRouter>);
+    expect(screen.getByText('Blocked')).toBeInTheDocument();
+  });
+
   it('should handle undefined status gracefully', () => {
     // Test with type assertion for testing undefined behavior
     renderWithRouter(<StatusBadge status={(undefined as unknown) as Issue["status"]} />);
