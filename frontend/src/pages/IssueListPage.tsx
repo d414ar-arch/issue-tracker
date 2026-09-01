@@ -14,6 +14,7 @@ import { LoadingState } from "@/components/ui/loading";
 import { IssueCard } from "@/components/issues";
 import { UserAvatar, TagBadge, EmptyIssues, EmptySearchResults } from "@/components/common";
 import { useToast } from "@/hooks/useToast";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { issuesApi, usersApi, tagsApi } from "@/lib/api";
 import type { Issue, User, Tag } from "@/types";
 
@@ -70,10 +71,13 @@ export default function IssueListPage() {
   };
 
   // Fetch data
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchData = useCallback(
+    async (options?: { background?: boolean }) => {
+      try {
+        // Show the loader only on the initial/foreground load, not on
+        // background live refresh (avoids a flicker every poll).
+        if (!options?.background) setLoading(true);
+        setError(null);
 
       // Clean filters - remove "all" values and convert "unassigned" to empty string
       const cleanedFilters = {
@@ -108,6 +112,9 @@ export default function IssueListPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Live refresh: refetch on focus + poll while visible, as background (no loader)
+  useRealtimeRefresh({ onRefresh: () => fetchData({ background: true }) });
 
   // Clear all filters
   const clearFilters = () => {
@@ -246,7 +253,7 @@ export default function IssueListPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={fetchData}
+              onClick={() => fetchData()}
               className="mt-2"
             >
               Try Again

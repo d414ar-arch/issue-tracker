@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -17,6 +17,8 @@ import { LoadingState } from "@/components/ui/loading";
 import { BoardColumn } from "@/components/board";
 import { KanbanCard } from "@/components/board";
 import { useToast } from "@/hooks/useToast";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { groupIssuesByStatus } from "@/lib/boardUtils";
 import { issuesApi } from "@/lib/api";
 import type { Issue, IssueStatus } from "@/types";
 
@@ -74,41 +76,29 @@ export default function KanbanBoardPage() {
     })
   );
 
-  const fetchIssues = async () => {
+  const fetchIssues = useCallback(async () => {
     try {
-      setLoading(true);
       const response = await issuesApi.getIssues({ limit: 100 });
-      const grouped = Object.fromEntries(
-        BOARD_COLUMNS.map((c) => [c.status, [] as Issue[]])
-      ) as Record<IssueStatus, Issue[]>;
-      for (const issue of response.data || []) {
-        if (grouped[issue.status]) {
-          grouped[issue.status].push(issue);
-        }
-      }
-      for (const [, issues] of Object.entries(grouped) as [
-        IssueStatus,
-        Issue[],
-      ][]) {
-        issues.sort(
-          (a, b) =>
-            a.sort_order - b.sort_order ||
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        );
-      }
-      setIssuesByStatus(grouped);
+      setIssuesByStatus(
+        groupIssuesByStatus(
+          response.data || [],
+          BOARD_COLUMNS.map((c) => c.status)
+        )
+      );
     } catch (err) {
       console.error("Failed to load board:", err);
       toast.error("Failed to load board. Please try again.");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
-    fetchIssues();
+    setLoading(true);
+    fetchIssues().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Live refresh: refetch on focus + poll while visible; paused during a drag
+  useRealtimeRefresh({ onRefresh: fetchIssues, paused: activeIssue !== null });
 
   const findIssueById = (id: number | string) => {
     for (const issues of Object.values(issuesByStatus)) {

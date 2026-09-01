@@ -47,6 +47,13 @@ services:
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     autoDeployTrigger: commit
+    # SPA fallback: BrowserRouter deep links (/issues, /board, /issues/:id)
+    # return 404 on hard refresh without this. Render only applies the
+    # rewrite when no file exists at the path, so /assets/* still serve.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       # Build-time env baked into the bundle. The `/api` suffix is
       # required and Blueprint has no string interpolation, so this

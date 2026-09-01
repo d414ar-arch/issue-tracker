@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, TagBadge, UserAvatar } from "@/components/common";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { issuesApi } from "@/lib/api";
 import type { Issue } from "@/types";
 
@@ -15,13 +16,16 @@ export default function IssueDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchIssue = async () => {
+  const fetchIssue = useCallback(
+    async (options?: { background?: boolean }) => {
       if (!id) {
         setError("Invalid issue ID");
         setLoading(false);
         return;
       }
+
+      // Skip the loader on background live refresh to avoid flicker
+      if (!options?.background) setLoading(true);
 
       try {
         const response = await issuesApi.getIssue(parseInt(id));
@@ -29,14 +33,23 @@ export default function IssueDetailPage() {
         setError(null);
       } catch (err) {
         console.error("Failed to fetch issue:", err);
-        setError("Failed to load issue. Please try again.");
+        // Don't clobber the loaded issue on a transient background failure
+        if (!options?.background) {
+          setError("Failed to load issue. Please try again.");
+        }
       } finally {
         setLoading(false);
       }
-    };
+    },
+    [id]
+  );
 
+  useEffect(() => {
     fetchIssue();
-  }, [id]);
+  }, [fetchIssue]);
+
+  // Live refresh: refetch on focus + poll while visible, as background
+  useRealtimeRefresh({ onRefresh: () => fetchIssue({ background: true }) });
 
   const handleDelete = async () => {
     if (!issue || !confirm("Are you sure you want to delete this issue?")) {
