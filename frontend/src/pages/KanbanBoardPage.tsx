@@ -14,13 +14,26 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BoardColumn } from "@/components/board";
 import { KanbanCard } from "@/components/board";
 import { useToast } from "@/hooks/useToast";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { groupIssuesByStatus } from "@/lib/boardUtils";
-import { issuesApi } from "@/lib/api";
-import type { Issue, IssueStatus } from "@/types";
+import {
+  groupIssuesByStatus,
+  filterBySprint,
+  filterByEpic,
+  type SprintFilter,
+  type EpicFilter,
+} from "@/lib/boardUtils";
+import { issuesApi, sprintsApi, epicsApi } from "@/lib/api";
+import type { Issue, IssueStatus, Sprint, Epic } from "@/types";
 
 type BoardColumnConfig = {
   status: IssueStatus;
@@ -69,6 +82,10 @@ export default function KanbanBoardPage() {
   );
   const [loading, setLoading] = useState(true);
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [sprintFilter, setSprintFilter] = useState<SprintFilter>("all");
+  const [epicFilter, setEpicFilter] = useState<EpicFilter>("all");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -76,12 +93,27 @@ export default function KanbanBoardPage() {
     })
   );
 
+  const filteredIssues = useMemo(() => {
+    const flat = Object.values(issuesByStatus).flat();
+    return groupIssuesByStatus(
+      filterByEpic(filterBySprint(flat, sprintFilter), epicFilter),
+      BOARD_COLUMNS.map((c) => c.status)
+    );
+  }, [issuesByStatus, sprintFilter, epicFilter]);
+
   const fetchIssues = useCallback(async () => {
     try {
-      const response = await issuesApi.getIssues({ limit: 100 });
+      const [issuesResponse, sprintsResponse, epicsResponse] =
+        await Promise.all([
+          issuesApi.getIssues({ limit: 100 }),
+          sprintsApi.getSprints(),
+          epicsApi.getEpics(),
+        ]);
+      setSprints(sprintsResponse.data || []);
+      setEpics(epicsResponse.data || []);
       setIssuesByStatus(
         groupIssuesByStatus(
-          response.data || [],
+          issuesResponse.data || [],
           BOARD_COLUMNS.map((c) => c.status)
         )
       );
@@ -259,11 +291,11 @@ export default function KanbanBoardPage() {
 
   const totalIssues = useMemo(
     () =>
-      Object.values(issuesByStatus).reduce(
+      Object.values(filteredIssues).reduce(
         (sum, issues) => sum + issues.length,
         0
       ),
-    [issuesByStatus]
+    [filteredIssues]
   );
 
   if (loading) {
@@ -288,6 +320,60 @@ export default function KanbanBoardPage() {
         </Button>
       </div>
 
+      {/* Sprint + Epic filters */}
+      <div className="flex flex-wrap gap-4">
+        <div className="w-56 space-y-2">
+          <label className="text-sm font-medium">Sprint</label>
+          <Select
+            value={String(sprintFilter)}
+            onValueChange={(value) =>
+              setSprintFilter(
+                value === "all"
+                  ? "all"
+                  : value === "backlog"
+                    ? "backlog"
+                    : Number(value)
+              )
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All sprints" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sprints</SelectItem>
+              <SelectItem value="backlog">Backlog</SelectItem>
+              {sprints.map((sprint) => (
+                <SelectItem key={sprint.id} value={String(sprint.id)}>
+                  {sprint.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="w-56 space-y-2">
+          <label className="text-sm font-medium">Epic</label>
+          <Select
+            value={String(epicFilter)}
+            onValueChange={(value) =>
+              setEpicFilter(value === "all" ? "all" : Number(value))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All epics" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All epics</SelectItem>
+              {epics.map((epic) => (
+                <SelectItem key={epic.id} value={String(epic.id)}>
+                  {epic.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="flex gap-4 overflow-x-auto pb-4">
         <DndContext
           sensors={sensors}
@@ -302,7 +388,7 @@ export default function KanbanBoardPage() {
               status={column.status}
               label={column.label}
               accentClass={column.accentClass}
-              issues={issuesByStatus[column.status] || []}
+              issues={filteredIssues[column.status] || []}
             />
           ))}
           <DragOverlay>

@@ -80,6 +80,8 @@ function resolveKey(apiKey) {
           .enum(["low", "medium", "high", "urgent"])
           .optional()
           .describe("Filter by priority"),
+        epic_id: z.number().optional().describe("Filter by epic ID"),
+        sprint_id: z.number().optional().describe("Filter by sprint ID"),
         created_by_user_id: z
           .string()
           .optional()
@@ -134,6 +136,8 @@ function resolveKey(apiKey) {
           .describe("Issue priority"),
         assigned_user_id: z.string().optional().describe("Assigned user ID"),
         tag_ids: z.array(z.number()).optional().describe("Array of tag IDs"),
+        epic_id: z.number().optional().describe("Epic ID"),
+        sprint_id: z.number().optional().describe("Sprint ID"),
         apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
@@ -210,6 +214,8 @@ function resolveKey(apiKey) {
           .describe("Position within the status column (kanban ordering)"),
         assigned_user_id: z.string().optional().describe("Assigned user ID"),
         tag_ids: z.array(z.number()).optional().describe("Array of tag IDs"),
+        epic_id: z.union([z.number(), z.null()]).optional().describe("Epic ID (null to clear)"),
+        sprint_id: z.union([z.number(), z.null()]).optional().describe("Sprint ID (null to clear)"),
         apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
       },
     },
@@ -412,6 +418,119 @@ function resolveKey(apiKey) {
       };
     }
   );
+
+  // Epics Tools
+
+  function registerResourceCrud(resource, resourceSingular) {
+    server.registerTool(
+      `${resource}-list`,
+      {
+        title: `List ${resourceSingular[0].toUpperCase()}${resourceSingular.slice(1)}s`,
+        description: `Get all ${resourceSingular}s`,
+        inputSchema: {
+          apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
+        },
+      },
+      async ({ apiKey }) => {
+        const result = await makeRequest(
+          "GET",
+          `${API_BASE_URL}/${resource}`,
+          null,
+          { headers: { "x-api-key": resolveKey(apiKey) } }
+        );
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+    );
+
+    server.registerTool(
+      `${resource}-create`,
+      {
+        title: `Create ${resourceSingular}`,
+        description: `Create a new ${resourceSingular}`,
+        inputSchema: {
+          name: z.string().describe(`${resourceSingular} name`),
+          description: z.string().optional().describe(`${resourceSingular} description`),
+          color: z.string().optional().describe(`${resourceSingular} color (hex format)`),
+          ...(resource === "sprints"
+            ? {
+                goal: z.string().optional().describe("Sprint goal"),
+                start_date: z.string().optional().describe("Start date (YYYY-MM-DD)"),
+                end_date: z.string().optional().describe("End date (YYYY-MM-DD)"),
+                status: z.enum(["planned", "active", "completed"]).optional().describe("Sprint status"),
+              }
+            : {}),
+          apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
+        },
+      },
+      async (params) => {
+        const { apiKey, ...data } = params;
+        const result = await makeRequest(
+          "POST",
+          `${API_BASE_URL}/${resource}`,
+          data,
+          { headers: { "x-api-key": resolveKey(apiKey) } }
+        );
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+    );
+
+    server.registerTool(
+      `${resource}-update`,
+      {
+        title: `Update ${resourceSingular}`,
+        description: `Update an existing ${resourceSingular}`,
+        inputSchema: {
+          id: z.number().describe(`${resourceSingular} ID`),
+          name: z.string().optional().describe(`${resourceSingular} name`),
+          description: z.string().optional().describe(`${resourceSingular} description`),
+          color: z.string().optional().describe(`${resourceSingular} color (hex format)`),
+          ...(resource === "sprints"
+            ? {
+                goal: z.string().optional().describe("Sprint goal"),
+                start_date: z.string().optional().describe("Start date (YYYY-MM-DD)"),
+                end_date: z.string().optional().describe("End date (YYYY-MM-DD)"),
+                status: z.enum(["planned", "active", "completed"]).optional().describe("Sprint status"),
+              }
+            : {}),
+          apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
+        },
+      },
+      async (params) => {
+        const { id, apiKey, ...data } = params;
+        const result = await makeRequest(
+          "PUT",
+          `${API_BASE_URL}/${resource}/${id}`,
+          data,
+          { headers: { "x-api-key": resolveKey(apiKey) } }
+        );
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+    );
+
+    server.registerTool(
+      `${resource}-delete`,
+      {
+        title: `Delete ${resourceSingular}`,
+        description: `Delete a ${resourceSingular} by ID`,
+        inputSchema: {
+          id: z.number().describe(`${resourceSingular} ID`),
+          apiKey: z.string().optional().describe("API key for authentication (defaults to API_KEY env var)"),
+        },
+      },
+      async ({ id, apiKey }) => {
+        const result = await makeRequest(
+          "DELETE",
+          `${API_BASE_URL}/${resource}/${id}`,
+          null,
+          { headers: { "x-api-key": resolveKey(apiKey) } }
+        );
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+    );
+  }
+
+  registerResourceCrud("epics", "epic");
+  registerResourceCrud("sprints", "sprint");
 
   // Users Tools
 

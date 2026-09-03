@@ -106,7 +106,7 @@ Cookie: better-auth.session_token=<session_token>
 ### List Issues
 
 ```http
-GET /api/issues?status=open&assigned_user_id=user_123&tag_ids=1,2&search=bug&page=1&limit=10&priority=high&created_by_user_id=user_456
+GET /api/issues?status=open&assigned_user_id=user_123&tag_ids=1,2&search=bug&page=1&limit=10&priority=high&created_by_user_id=user_456&epic_id=1&sprint_id=2
 ```
 
 **Query Parameters:**
@@ -118,6 +118,8 @@ GET /api/issues?status=open&assigned_user_id=user_123&tag_ids=1,2&search=bug&pag
 - `page` (optional): Page number (default: 1)
 - `limit` (optional): Items per page (default: 10, max: 100)
 - `priority` (optional): `low`, `medium`, `high`
+- `epic_id` (optional): Filter by epic ID
+- `sprint_id` (optional): Filter by sprint ID
 - `created_by_user_id` (optional): Filter by creator user ID
 
 **Response (200):**
@@ -131,6 +133,8 @@ GET /api/issues?status=open&assigned_user_id=user_123&tag_ids=1,2&search=bug&pag
       "description": "Users can't log in with special characters",
       "status": "not_started",
       "priority": "high",
+      "epic_id": 1,
+      "sprint_id": 2,
       "assigned_user_id": "user_123",
       "created_by_user_id": "user_456",
       "created_at": "2025-07-12T10:30:00.000Z",
@@ -144,6 +148,17 @@ GET /api/issues?status=open&assigned_user_id=user_123&tag_ids=1,2&search=bug&pag
         "id": "user_456",
         "name": "Jane Smith",
         "email": "jane@example.com"
+      },
+      "epic": {
+        "id": 1,
+        "name": "Migrate to PostgreSQL"
+      },
+      "sprint": {
+        "id": 2,
+        "name": "Sprint 12",
+        "start_date": "2026-09-01",
+        "end_date": "2026-09-14",
+        "status": "active"
       },
       "tags": [
         {
@@ -177,6 +192,8 @@ Cookie: better-auth.session_token=<session_token>
   "description": "Implement dark mode toggle for better user experience",
   "status": "not_started",
   "priority": "medium",
+  "epic_id": 1,
+  "sprint_id": 2,
   "assigned_user_id": "user_123",
   "tag_ids": [1, 2]
 }
@@ -283,6 +300,161 @@ Cookie: better-auth.session_token=<session_token>
   "message": "Issue deleted successfully"
 }
 ```
+
+## Epics API
+
+### List Epics
+
+```http
+GET /api/epics
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Migrate to PostgreSQL",
+      "description": "Move the database to Postgres",
+      "color": "#6366f1",
+      "created_at": "2025-07-12T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+### Create Epic
+
+```http
+POST /api/epics
+Content-Type: application/json
+
+{
+  "name": "Migrate to PostgreSQL",
+  "description": "Move the database to Postgres",
+  "color": "#6366f1"
+}
+```
+
+**Response (201):** The created epic with `id` and `created_at`.
+
+**Errors:** `400` if name is empty or color is not a valid hex.
+
+### Get Epic by ID
+
+```http
+GET /api/epics/1
+```
+
+**Response (200):** The epic object, or `404` if not found.
+
+### Update Epic
+
+```http
+PUT /api/epics/1
+Content-Type: application/json
+
+{
+  "name": "Migrate to PostgreSQL",
+  "color": "#8b5cf6"
+}
+```
+
+**Response (200):** The updated epic. `400` if the body is empty or invalid.
+
+### Delete Epic
+
+```http
+DELETE /api/epics/1
+```
+
+**Response (200):** `{ "success": true, "message": "Epic \"...\" deleted successfully" }`. References on issues are set to NULL (`epic_id` becomes `null`); issues themselves are NOT deleted.
+
+## Sprints API
+
+### List Sprints
+
+```http
+GET /api/sprints
+```
+
+Sprints are ordered by `start_date` descending (most recent first).
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 2,
+      "name": "Sprint 12",
+      "goal": "Ship auth",
+      "start_date": "2026-09-01",
+      "end_date": "2026-09-14",
+      "status": "active",
+      "created_at": "2025-08-01T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+### Create Sprint
+
+```http
+POST /api/sprints
+Content-Type: application/json
+
+{
+  "name": "Sprint 12",
+  "goal": "Ship auth",
+  "start_date": "2026-09-01",
+  "end_date": "2026-09-14",
+  "status": "active"
+}
+```
+
+**Response (201):** The created sprint (`status` defaults to `planned`).
+
+**Errors:** `400` if name is empty, status is not `planned`/`active`/`completed`, dates are malformed (`YYYY-MM-DD`), or `end_date` is before `start_date`.
+
+### Get Sprint by ID
+
+```http
+GET /api/sprints/2
+```
+
+**Response (200):** The sprint object, or `404` if not found.
+
+### Update Sprint
+
+```http
+PUT /api/sprints/2
+Content-Type: application/json
+
+{
+  "status": "completed"
+}
+```
+
+**Response (200):** The updated sprint. The end-before-start rule is enforced across the merged existing+new dates.
+
+### Delete Sprint
+
+```http
+DELETE /api/sprints/2
+```
+
+**Response (200):** `{ "success": true, "message": "Sprint \"...\" deleted successfully" }`. References on issues are set to NULL (`sprint_id` becomes `null`); issues themselves are NOT deleted.
+
+### Sprint Status Values
+
+- `planned` - Upcoming sprint (default)
+- `active` - Currently in progress
+- `completed` - Finished
 
 ## Tags API
 

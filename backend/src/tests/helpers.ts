@@ -75,6 +75,42 @@ export const createTestDbUser = async (userData: any = {}) => {
   return user;
 };
 
+export const createTestEpic = async (epicData = {}) => {
+  const defaultEpic = {
+    name: "test-epic",
+    description: "Test epic",
+    color: "#6366f1",
+  };
+
+  const epic = { ...defaultEpic, ...epicData };
+
+  const result = await testDb.run(
+    "INSERT INTO epics (name, description, color) VALUES (?, ?, ?)",
+    [epic.name, epic.description ?? null, epic.color]
+  );
+
+  return { ...epic, id: result.lastID };
+};
+
+export const createTestSprint = async (sprintData = {}) => {
+  const defaultSprint = {
+    name: "test-sprint",
+    goal: null,
+    start_date: null,
+    end_date: null,
+    status: "planned",
+  };
+
+  const sprint = { ...defaultSprint, ...sprintData };
+
+  const result = await testDb.run(
+    "INSERT INTO sprints (name, goal, start_date, end_date, status) VALUES (?, ?, ?, ?, ?)",
+    [sprint.name, sprint.goal ?? null, sprint.start_date ?? null, sprint.end_date ?? null, sprint.status]
+  );
+
+  return { ...sprint, id: result.lastID };
+};
+
 export const createTestTag = async (tagData = {}) => {
   const defaultTag = {
     name: "test-tag",
@@ -104,6 +140,8 @@ export const createTestIssue = async (issueData: any = {}) => {
     description: "Test Description",
     status: "not_started",
     priority: "medium",
+    epic_id: null,
+    sprint_id: null,
     assigned_user_id: null,
     created_by_user_id: userId,
   };
@@ -111,11 +149,13 @@ export const createTestIssue = async (issueData: any = {}) => {
   const issue = { ...defaultIssue, ...issueData };
 
   const result = await testDb.run(
-    "INSERT INTO issues (title, description, status, created_by_user_id, assigned_user_id, priority) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO issues (title, description, status, epic_id, sprint_id, created_by_user_id, assigned_user_id, priority) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     [
       issue.title,
       issue.description,
       issue.status,
+      issue.epic_id ?? null,
+      issue.sprint_id ?? null,
       issue.created_by_user_id,
       issue.assigned_user_id,
       issue.priority,

@@ -80,6 +80,28 @@ beforeAll(async () => {
     `);
 
     await testDb.run(`
+      CREATE TABLE IF NOT EXISTS epics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        color TEXT DEFAULT '#6366f1',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await testDb.run(`
+      CREATE TABLE IF NOT EXISTS sprints (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        goal TEXT,
+        start_date TEXT,
+        end_date TEXT,
+        status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'active', 'completed')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await testDb.run(`
       CREATE TABLE IF NOT EXISTS tags (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
@@ -98,10 +120,14 @@ beforeAll(async () => {
         sort_order INTEGER NOT NULL DEFAULT 0,
         assigned_user_id TEXT,
         created_by_user_id TEXT NOT NULL,
+        epic_id INTEGER,
+        sprint_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (assigned_user_id) REFERENCES user(id),
-        FOREIGN KEY (created_by_user_id) REFERENCES user(id)
+        FOREIGN KEY (created_by_user_id) REFERENCES user(id),
+        FOREIGN KEY (epic_id) REFERENCES epics(id) ON DELETE SET NULL,
+        FOREIGN KEY (sprint_id) REFERENCES sprints(id) ON DELETE SET NULL
       )
     `);
 
@@ -152,6 +178,12 @@ beforeAll(async () => {
     await testDb.run(
       `CREATE INDEX IF NOT EXISTS idx_issues_sort_order ON issues(status, sort_order)`
     );
+    await testDb.run(
+      `CREATE INDEX IF NOT EXISTS idx_issues_epic_id ON issues(epic_id)`
+    );
+    await testDb.run(
+      `CREATE INDEX IF NOT EXISTS idx_issues_sprint_id ON issues(sprint_id)`
+    );
   } catch (err) {
     console.error("Error creating test database tables:", err);
     throw err;
@@ -164,6 +196,8 @@ beforeEach(async () => {
     await testDb.run("DELETE FROM issue_tags");
     await testDb.run("DELETE FROM issues");
     await testDb.run("DELETE FROM tags");
+    await testDb.run("DELETE FROM epics");
+    await testDb.run("DELETE FROM sprints");
     await testDb.run("DELETE FROM session");
     await testDb.run("DELETE FROM account");
     await testDb.run("DELETE FROM verification");

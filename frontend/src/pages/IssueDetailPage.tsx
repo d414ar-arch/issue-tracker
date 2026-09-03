@@ -245,6 +245,36 @@ export default function IssueDetailPage() {
                   )}
                 </div>
               </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Epic
+                </label>
+                <div className="mt-1">
+                  {issue.epic ? (
+                    <Badge variant="outline" className="text-primary border-primary/40">
+                      {issue.epic.name}
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">None</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Sprint
+                </label>
+                <div className="mt-1">
+                  {issue.sprint ? (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      {issue.sprint.name}
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">None</span>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
 

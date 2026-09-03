@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { IssueForm, type IssueFormData } from "@/components/issues";
-import { usersApi, tagsApi, issuesApi } from "@/lib/api";
-import type { Issue, User, Tag } from "@/types";
+import { usersApi, tagsApi, issuesApi, epicsApi, sprintsApi } from "@/lib/api";
+import type { Issue, User, Tag, Epic, Sprint } from "@/types";
 
 export default function EditIssuePage() {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +10,8 @@ export default function EditIssuePage() {
   const [issue, setIssue] = useState<Issue | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,16 +25,21 @@ export default function EditIssuePage() {
       }
 
       try {
-        const [issueResponse, usersResponse, tagsResponse] = await Promise.all([
-          issuesApi.getIssue(parseInt(id)),
-          usersApi.getUsers(),
-          tagsApi.getTags(),
-        ]);
+        const [issueResponse, usersResponse, tagsResponse, epicsResponse, sprintsResponse] =
+          await Promise.all([
+            issuesApi.getIssue(parseInt(id)),
+            usersApi.getUsers(),
+            tagsApi.getTags(),
+            epicsApi.getEpics(),
+            sprintsApi.getSprints(),
+          ]);
 
         // API wrapper functions already return the correct structure
         setIssue(issueResponse.data);
         setUsers(usersResponse.data || []);
         setTags(tagsResponse.data || []);
+        setEpics(epicsResponse.data || []);
+        setSprints(sprintsResponse.data || []);
         setError(null);
       } catch (err) {
         console.error("Failed to fetch data:", err);
@@ -43,6 +50,8 @@ export default function EditIssuePage() {
         }
         setUsers([]);
         setTags([]);
+        setEpics([]);
+        setSprints([]);
       } finally {
         setLoading(false);
       }
@@ -127,6 +136,8 @@ export default function EditIssuePage() {
           issue={issue}
           users={users}
           tags={tags}
+          epics={epics}
+          sprints={sprints}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
           isLoading={submitting}

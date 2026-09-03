@@ -13,12 +13,14 @@ import { LoadingSpinner } from "@/components/ui/loading";
 import TagBadge from "@/components/common/TagBadge";
 import UserAvatar from "@/components/common/UserAvatar";
 import { useToast } from "@/hooks/useToast";
-import type { Issue, User, Tag } from "@/types";
+import type { Issue, User, Tag, Epic, Sprint } from "@/types";
 
 interface IssueFormProps {
   issue?: Issue; // If provided, form is in edit mode
   users?: User[];
   tags?: Tag[];
+  epics?: Epic[];
+  sprints?: Sprint[];
   onSubmit: (data: IssueFormData) => Promise<void>;
   onCancel?: () => void;
   isLoading?: boolean;
@@ -30,25 +32,39 @@ export interface IssueFormData {
   description: string;
   priority: Issue["priority"];
   status?: Issue["status"];
+  epic_id?: number | null;
+  sprint_id?: number | null;
   assigned_user_id?: string;
   tag_ids: number[];
 }
+
+// Internal form state uses string sentinels for the epic/sprint selects.
+type SelectableId = number | "none" | undefined;
 
 export default function IssueForm({
   issue,
   users = [],
   tags = [],
+  epics = [],
+  sprints = [],
   onSubmit,
   onCancel,
   isLoading = false,
   className,
 }: IssueFormProps) {
   const toast = useToast();
-  const [formData, setFormData] = useState<IssueFormData>({
+  const [formData, setFormData] = useState<
+    Omit<IssueFormData, "epic_id" | "sprint_id"> & {
+      epic_id: SelectableId;
+      sprint_id: SelectableId;
+    }
+  >({
     title: issue?.title || "",
     description: issue?.description || "",
     priority: issue?.priority || "medium",
     status: issue?.status || "not_started",
+    epic_id: issue?.epic_id ?? "none",
+    sprint_id: issue?.sprint_id ?? "none",
     assigned_user_id: issue?.assigned_user_id || "unassigned",
     tag_ids: issue?.tags?.map(tag => tag.id) || [],
   });
@@ -91,6 +107,18 @@ export default function IssueForm({
       // Clean the form data before submission
       const cleanedFormData = {
         ...formData,
+        epic_id:
+          formData.epic_id === "none"
+            ? null
+            : formData.epic_id === undefined || formData.epic_id === null
+              ? undefined
+              : Number(formData.epic_id),
+        sprint_id:
+          formData.sprint_id === "none"
+            ? null
+            : formData.sprint_id === undefined || formData.sprint_id === null
+              ? undefined
+              : Number(formData.sprint_id),
         assigned_user_id: formData.assigned_user_id === "unassigned" ? undefined : formData.assigned_user_id || undefined,
       };
       await onSubmit(cleanedFormData);
@@ -242,6 +270,54 @@ export default function IssueForm({
                       <UserAvatar user={user} size="sm" />
                       <span>{user.name}</span>
                     </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Epic */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Epic</label>
+            <Select
+              value={String(formData.epic_id)}
+              onValueChange={(value) =>
+                setFormData(prev => ({ ...prev, epic_id: value === "none" ? "none" : Number(value) }))
+              }
+              disabled={isLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="No epic" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {(epics || []).map((epic) => (
+                  <SelectItem key={epic.id} value={String(epic.id)}>
+                    {epic.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Sprint */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Sprint</label>
+            <Select
+              value={String(formData.sprint_id)}
+              onValueChange={(value) =>
+                setFormData(prev => ({ ...prev, sprint_id: value === "none" ? "none" : Number(value) }))
+              }
+              disabled={isLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="No sprint" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {(sprints || []).map((sprint) => (
+                  <SelectItem key={sprint.id} value={String(sprint.id)}>
+                    {sprint.name}
                   </SelectItem>
                 ))}
               </SelectContent>

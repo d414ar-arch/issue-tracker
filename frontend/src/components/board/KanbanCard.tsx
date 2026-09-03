@@ -86,6 +86,14 @@ export default function KanbanCard({ issue }: KanbanCardProps) {
         </div>
       )}
 
+      {issue.epic && (
+        <div className="mt-2">
+          <span className="text-xs font-medium text-primary">
+            {issue.epic.name}
+          </span>
+        </div>
+      )}
+
       <div className="mt-3 flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
           {issue.assigned_user ? (

@@ -22,6 +22,8 @@ export interface Issue {
   status: IssueStatus;
   priority: "low" | "medium" | "high" | "urgent";
   sort_order: number;
+  epic_id: number | null;
+  sprint_id: number | null;
   assigned_user_id: string | null;
   created_by_user_id: string;
   created_at: string;
@@ -42,6 +44,17 @@ export interface Issue {
     name: string;
     color: string;
   }>;
+  epic?: {
+    id: number;
+    name: string;
+  } | null;
+  sprint?: {
+    id: number;
+    name: string;
+    start_date: string | null;
+    end_date: string | null;
+    status: string;
+  } | null;
 }
 
 export interface CreateIssueRequest {
@@ -50,6 +63,8 @@ export interface CreateIssueRequest {
   status?: IssueStatus;
   priority?: "low" | "medium" | "high" | "urgent";
   sort_order?: number;
+  epic_id?: number;
+  sprint_id?: number;
   assigned_user_id?: string;
   tag_ids?: number[];
 }
@@ -60,6 +75,8 @@ export interface UpdateIssueRequest {
   status?: IssueStatus;
   priority?: "low" | "medium" | "high" | "urgent";
   sort_order?: number;
+  epic_id?: number | null;
+  sprint_id?: number | null;
   assigned_user_id?: string;
   tag_ids?: number[];
 }
@@ -67,6 +84,8 @@ export interface UpdateIssueRequest {
 export interface IssueFilters {
   status?: string;
   priority?: string;
+  epic_id?: string;
+  sprint_id?: string;
   assigned_user_id?: string;
   created_by_user_id?: string;
   tag_id?: string;
@@ -96,6 +115,81 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
     );
   }
 
+  const formatIssueRow = (issue: any) => ({
+    id: issue.id,
+    title: issue.title,
+    description: issue.description,
+    status: issue.status,
+    priority: issue.priority,
+    sort_order: issue.sort_order ?? 0,
+    epic_id: issue.epic_id ?? null,
+    sprint_id: issue.sprint_id ?? null,
+    assigned_user_id: issue.assigned_user_id,
+    created_by_user_id: issue.created_by_user_id,
+    created_at: issue.created_at,
+    updated_at: issue.updated_at,
+    assigned_user: issue.assigned_user_id
+      ? {
+          id: issue.assigned_user_id,
+          name: issue.assigned_user_name,
+          email: issue.assigned_user_email,
+        }
+      : null,
+    created_by_user: {
+      id: issue.created_by_user_id,
+      name: issue.created_by_user_name,
+      email: issue.created_by_user_email,
+    },
+    epic: issue.epic_id
+      ? {
+          id: issue.epic_j_id,
+          name: issue.epic_j_name,
+        }
+      : null,
+    sprint: issue.sprint_id
+      ? {
+          id: issue.sprint_j_id,
+          name: issue.sprint_j_name,
+          start_date: issue.sprint_j_start_date,
+          end_date: issue.sprint_j_end_date,
+          status: issue.sprint_j_status,
+        }
+      : null,
+    tags: issue.tags || [],
+  });
+
+  const issueDetailSelect = `
+        SELECT 
+          i.id,
+          i.title,
+          i.description,
+          i.status,
+          i.priority,
+          i.sort_order,
+          i.epic_id,
+          i.sprint_id,
+          i.assigned_user_id,
+          i.created_by_user_id,
+          i.created_at,
+          i.updated_at,
+          au.name as assigned_user_name,
+          au.email as assigned_user_email,
+          cu.name as created_by_user_name,
+          cu.email as created_by_user_email,
+          e.id as epic_j_id,
+          e.name as epic_j_name,
+          s.id as sprint_j_id,
+          s.name as sprint_j_name,
+          s.start_date as sprint_j_start_date,
+          s.end_date as sprint_j_end_date,
+          s.status as sprint_j_status
+        FROM issues i
+        LEFT JOIN "user" au ON i.assigned_user_id = au.id
+        LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
+        LEFT JOIN epics e ON i.epic_id = e.id
+        LEFT JOIN sprints s ON i.sprint_id = s.id
+  `;
+
   // GET /api/issues - Get all issues with filtering and pagination
   fastify.get<{ Querystring: IssueFilters }>(
     "/",
@@ -104,6 +198,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
         const {
           status,
           priority,
+          epic_id,
+          sprint_id,
           assigned_user_id,
           created_by_user_id,
           tag_id,
@@ -129,6 +225,16 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
         if (priority) {
           whereConditions.push("i.priority = ?");
           params.push(priority);
+        }
+
+        if (epic_id) {
+          whereConditions.push("i.epic_id = ?");
+          params.push(epic_id);
+        }
+
+        if (sprint_id) {
+          whereConditions.push("i.sprint_id = ?");
+          params.push(sprint_id);
         }
 
         if (assigned_user_id) {
@@ -169,6 +275,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           i.status,
           i.priority,
           i.sort_order,
+          i.epic_id,
+          i.sprint_id,
           i.assigned_user_id,
           i.created_by_user_id,
           i.created_at,
@@ -176,10 +284,19 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           au.name as assigned_user_name,
           au.email as assigned_user_email,
           cu.name as created_by_user_name,
-          cu.email as created_by_user_email
+          cu.email as created_by_user_email,
+          e.id as epic_j_id,
+          e.name as epic_j_name,
+          s.id as sprint_j_id,
+          s.name as sprint_j_name,
+          s.start_date as sprint_j_start_date,
+          s.end_date as sprint_j_end_date,
+          s.status as sprint_j_status
         FROM issues i
         LEFT JOIN "user" au ON i.assigned_user_id = au.id
         LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
+        LEFT JOIN epics e ON i.epic_id = e.id
+        LEFT JOIN sprints s ON i.sprint_id = s.id
         ${whereClause}
         ORDER BY i.sort_order ASC, i.updated_at DESC, i.created_at DESC
         LIMIT ? OFFSET ?
@@ -222,31 +339,9 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
         }, {});
 
         // Format the response
-        const formattedIssues = issues.map((issue) => ({
-          id: issue.id,
-          title: issue.title,
-          description: issue.description,
-          status: issue.status,
-          priority: issue.priority,
-          sort_order: issue.sort_order ?? 0,
-          assigned_user_id: issue.assigned_user_id,
-          created_by_user_id: issue.created_by_user_id,
-          created_at: issue.created_at,
-          updated_at: issue.updated_at,
-          assigned_user: issue.assigned_user_id
-            ? {
-                id: issue.assigned_user_id,
-                name: issue.assigned_user_name,
-                email: issue.assigned_user_email,
-              }
-            : null,
-          created_by_user: {
-            id: issue.created_by_user_id,
-            name: issue.created_by_user_name,
-            email: issue.created_by_user_email,
-          },
-          tags: tagsByIssue[issue.id] || [],
-        }));
+        const formattedIssues = issues.map((issue) =>
+          formatIssueRow({ ...issue, tags: tagsByIssue[issue.id] || [] })
+        );
 
         // Get total count for pagination
         const countQuery = `
@@ -291,6 +386,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           status = "not_started",
           priority = "medium",
           sort_order,
+          epic_id,
+          sprint_id,
           assigned_user_id,
           tag_ids = [],
         } = request.body;
@@ -341,6 +438,37 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           }
         }
 
+        // Validate epic exists if provided
+        if (epic_id !== undefined && epic_id !== null) {
+          const epicExists = await db.get("SELECT id FROM epics WHERE id = ?", [
+            epic_id,
+          ]);
+          if (!epicExists) {
+            await db.close();
+            return reply.status(400).send({
+              success: false,
+              error: "Validation error",
+              message: `Epic with ID "${epic_id}" does not exist`,
+            });
+          }
+        }
+
+        // Validate sprint exists if provided
+        if (sprint_id !== undefined && sprint_id !== null) {
+          const sprintExists = await db.get(
+            "SELECT id FROM sprints WHERE id = ?",
+            [sprint_id]
+          );
+          if (!sprintExists) {
+            await db.close();
+            return reply.status(400).send({
+              success: false,
+              error: "Validation error",
+              message: `Sprint with ID "${sprint_id}" does not exist`,
+            });
+          }
+        }
+
         // Validate tags exist if provided
         if (tag_ids.length > 0) {
           const placeholders = tag_ids.map(() => "?").join(",");
@@ -371,13 +499,15 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         // Create the issue
         const result = await db.run(
-          `INSERT INTO issues (title, description, status, sort_order, assigned_user_id, created_by_user_id, priority) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO issues (title, description, status, sort_order, epic_id, sprint_id, assigned_user_id, created_by_user_id, priority) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             trimmedTitle,
             description || null,
             status,
             sort_order ?? 0,
+            epic_id ?? null,
+            sprint_id ?? null,
             assigned_user_id || null,
             currentUser.id,
             priority || "medium",
@@ -399,27 +529,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         // Get the created issue with all details
         const newIssue = await db.get(
-          `
-        SELECT 
-          i.id,
-          i.title,
-          i.description,
-          i.status,
-          i.priority,
-          i.sort_order,
-          i.assigned_user_id,
-          i.created_by_user_id,
-          i.created_at,
-          i.updated_at,
-          au.name as assigned_user_name,
-          au.email as assigned_user_email,
-          cu.name as created_by_user_name,
-          cu.email as created_by_user_email
-        FROM issues i
-        LEFT JOIN "user" au ON i.assigned_user_id = au.id
-        LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
-        WHERE i.id = ?
-      `,
+          `${issueDetailSelect} WHERE i.id = ?`,
           [issueId]
         );
 
@@ -437,23 +547,10 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         await db.close();
 
-        const formattedIssue = {
+        const formattedIssue = formatIssueRow({
           ...newIssue,
-          sort_order: newIssue.sort_order ?? 0,
-          assigned_user: newIssue.assigned_user_id
-            ? {
-                id: newIssue.assigned_user_id,
-                name: newIssue.assigned_user_name,
-                email: newIssue.assigned_user_email,
-              }
-            : null,
-          created_by_user: {
-            id: newIssue.created_by_user_id,
-            name: newIssue.created_by_user_name,
-            email: newIssue.created_by_user_email,
-          },
           tags: issueTags,
-        };
+        });
 
         return reply.status(201).send({
           success: true,
@@ -490,27 +587,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
         const db = await getDatabase();
 
         const issue = await db.get(
-          `
-        SELECT 
-          i.id,
-          i.title,
-          i.description,
-          i.status,
-          i.priority,
-          i.sort_order,
-          i.assigned_user_id,
-          i.created_by_user_id,
-          i.created_at,
-          i.updated_at,
-          au.name as assigned_user_name,
-          au.email as assigned_user_email,
-          cu.name as created_by_user_name,
-          cu.email as created_by_user_email
-        FROM issues i
-        LEFT JOIN "user" au ON i.assigned_user_id = au.id
-        LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
-        WHERE i.id = ?
-      `,
+          `${issueDetailSelect} WHERE i.id = ?`,
           [issueId]
         );
 
@@ -537,23 +614,10 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         await db.close();
 
-        const formattedIssue = {
+        const formattedIssue = formatIssueRow({
           ...issue,
-          sort_order: issue.sort_order ?? 0,
-          assigned_user: issue.assigned_user_id
-            ? {
-                id: issue.assigned_user_id,
-                name: issue.assigned_user_name,
-                email: issue.assigned_user_email,
-              }
-            : null,
-          created_by_user: {
-            id: issue.created_by_user_id,
-            name: issue.created_by_user_name,
-            email: issue.created_by_user_email,
-          },
           tags: issueTags,
-        };
+        });
 
         return {
           success: true,
@@ -592,6 +656,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           status,
           priority,
           sort_order,
+          epic_id,
+          sprint_id,
           assigned_user_id,
           tag_ids,
         } = request.body;
@@ -603,6 +669,8 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           !status &&
           !priority &&
           sort_order === undefined &&
+          epic_id === undefined &&
+          sprint_id === undefined &&
           assigned_user_id === undefined &&
           !tag_ids
         ) {
@@ -678,6 +746,35 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           }
         }
 
+        if (epic_id !== undefined && epic_id !== null) {
+          const epicExists = await db.get("SELECT id FROM epics WHERE id = ?", [
+            epic_id,
+          ]);
+          if (!epicExists) {
+            await db.close();
+            return reply.status(400).send({
+              success: false,
+              error: "Validation error",
+              message: `Epic with ID "${epic_id}" does not exist`,
+            });
+          }
+        }
+
+        if (sprint_id !== undefined && sprint_id !== null) {
+          const sprintExists = await db.get(
+            "SELECT id FROM sprints WHERE id = ?",
+            [sprint_id]
+          );
+          if (!sprintExists) {
+            await db.close();
+            return reply.status(400).send({
+              success: false,
+              error: "Validation error",
+              message: `Sprint with ID "${sprint_id}" does not exist`,
+            });
+          }
+        }
+
         if (tag_ids !== undefined && tag_ids.length > 0) {
           const placeholders = tag_ids.map(() => "?").join(",");
           const existingTags = await db.all(
@@ -722,6 +819,14 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
           updateFields.push("assigned_user_id = ?");
           updateParams.push(assigned_user_id);
         }
+        if (epic_id !== undefined) {
+          updateFields.push("epic_id = ?");
+          updateParams.push(epic_id === null ? null : epic_id);
+        }
+        if (sprint_id !== undefined) {
+          updateFields.push("sprint_id = ?");
+          updateParams.push(sprint_id === null ? null : sprint_id);
+        }
 
         // Always update the updated_at timestamp
         updateFields.push("updated_at = CURRENT_TIMESTAMP");
@@ -752,27 +857,7 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         // Get the updated issue with all details
         const updatedIssue = await db.get(
-          `
-        SELECT 
-          i.id,
-          i.title,
-          i.description,
-          i.status,
-          i.priority,
-          i.sort_order,
-          i.assigned_user_id,
-          i.created_by_user_id,
-          i.created_at,
-          i.updated_at,
-          au.name as assigned_user_name,
-          au.email as assigned_user_email,
-          cu.name as created_by_user_name,
-          cu.email as created_by_user_email
-        FROM issues i
-        LEFT JOIN "user" au ON i.assigned_user_id = au.id
-        LEFT JOIN "user" cu ON i.created_by_user_id = cu.id
-        WHERE i.id = ?
-      `,
+          `${issueDetailSelect} WHERE i.id = ?`,
           [issueId]
         );
 
@@ -790,23 +875,10 @@ const issuesRoute: FastifyPluginAsync = async function (fastify) {
 
         await db.close();
 
-        const formattedIssue = {
+        const formattedIssue = formatIssueRow({
           ...updatedIssue,
-          sort_order: updatedIssue.sort_order ?? 0,
-          assigned_user: updatedIssue.assigned_user_id
-            ? {
-                id: updatedIssue.assigned_user_id,
-                name: updatedIssue.assigned_user_name,
-                email: updatedIssue.assigned_user_email,
-              }
-            : null,
-          created_by_user: {
-            id: updatedIssue.created_by_user_id,
-            name: updatedIssue.created_by_user_name,
-            email: updatedIssue.created_by_user_email,
-          },
           tags: issueTags,
-        };
+        });
 
         return {
           success: true,

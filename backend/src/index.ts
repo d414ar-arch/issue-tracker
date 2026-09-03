@@ -5,6 +5,8 @@ import { auth } from "./auth.js";
 import usersRoute from "./routes/users.js";
 import tagsRoute from "./routes/tags.js";
 import issuesRoute from "./routes/issues.js";
+import epicsRoute from "./routes/epics.js";
+import sprintsRoute from "./routes/sprints.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import {
   healthCheckHandler,
@@ -290,6 +292,8 @@ export async function buildApp(
     fastify.register(usersRoute, { prefix: "/api/users" });
     fastify.register(tagsRoute, { prefix: "/api/tags" });
     fastify.register(issuesRoute, { prefix: "/api/issues" });
+    fastify.register(epicsRoute, { prefix: "/api/epics" });
+    fastify.register(sprintsRoute, { prefix: "/api/sprints" });
   });
 
   // Health check endpoints (no rate limiting)

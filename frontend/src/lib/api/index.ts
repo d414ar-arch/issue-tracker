@@ -5,6 +5,8 @@ import type {
   User,
   Issue,
   Tag,
+  Epic,
+  Sprint,
   IssueFilters,
 } from "@/types";
 
@@ -98,6 +100,22 @@ export const tagsApi = {
   },
 };
 
+// Epics API
+export const epicsApi = {
+  getEpics: async (): Promise<ApiResponse<Epic[]>> => {
+    const response = await api.get("/epics");
+    return response.data;
+  },
+};
+
+// Sprints API
+export const sprintsApi = {
+  getSprints: async (): Promise<ApiResponse<Sprint[]>> => {
+    const response = await api.get("/sprints");
+    return response.data;
+  },
+};
+
 // Issues API
 export const issuesApi = {
   getIssues: async (
@@ -117,6 +135,8 @@ export const issuesApi = {
     description: string;
     status?: string;
     priority: string;
+    epic_id?: number | null;
+    sprint_id?: number | null;
     assigned_user_id?: string;
     tag_ids?: number[];
   }): Promise<ApiResponse<Issue>> => {
@@ -132,6 +152,8 @@ export const issuesApi = {
       status: string;
       priority: string;
       sort_order: number;
+      epic_id?: number | null;
+      sprint_id?: number | null;
       assigned_user_id?: string;
       tag_ids?: number[];
     }>

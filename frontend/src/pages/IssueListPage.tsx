@@ -15,14 +15,16 @@ import { IssueCard } from "@/components/issues";
 import { UserAvatar, TagBadge, EmptyIssues, EmptySearchResults } from "@/components/common";
 import { useToast } from "@/hooks/useToast";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { issuesApi, usersApi, tagsApi } from "@/lib/api";
-import type { Issue, User, Tag } from "@/types";
+import { issuesApi, usersApi, tagsApi, epicsApi, sprintsApi } from "@/lib/api";
+import type { Issue, User, Tag, Epic, Sprint } from "@/types";
 
 interface IssueFilters {
   search?: string;
   status?: string;
-  assignedUserId?: string;
-  tagId?: string;
+  epic_id?: string;
+  sprint_id?: string;
+  assigned_user_id?: string;
+  tag_id?: string;
   page?: number;
   limit?: number;
 }
@@ -34,6 +36,8 @@ export default function IssueListPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
@@ -43,8 +47,10 @@ export default function IssueListPage() {
   const filters: IssueFilters = useMemo(() => ({
     search: searchParams.get("search") || "",
     status: searchParams.get("status") || "",
-    assignedUserId: searchParams.get("assignedUserId") || "",
-    tagId: searchParams.get("tagId") || "",
+    epic_id: searchParams.get("epic_id") || "",
+    sprint_id: searchParams.get("sprint_id") || "",
+    assigned_user_id: searchParams.get("assigned_user_id") || "",
+    tag_id: searchParams.get("tag_id") || "",
     page: parseInt(searchParams.get("page") || "1"),
     limit: 10,
   }), [searchParams]);
@@ -83,15 +89,19 @@ export default function IssueListPage() {
       const cleanedFilters = {
         ...filters,
         status: filters.status === "all" ? "" : filters.status,
-        assignedUserId: filters.assignedUserId === "all" ? "" : 
-                       filters.assignedUserId === "unassigned" ? "" : filters.assignedUserId,
-        tagId: filters.tagId === "all" ? "" : filters.tagId,
+        epic_id: filters.epic_id === "all" ? "" : filters.epic_id,
+        sprint_id: filters.sprint_id === "all" ? "" : filters.sprint_id,
+        assigned_user_id: filters.assigned_user_id === "all" ? "" : 
+                       filters.assigned_user_id === "unassigned" ? "" : filters.assigned_user_id,
+        tag_id: filters.tag_id === "all" ? "" : filters.tag_id,
       };
 
-      const [issuesResponse, usersResponse, tagsResponse] = await Promise.all([
+      const [issuesResponse, usersResponse, tagsResponse, epicsResponse, sprintsResponse] = await Promise.all([
         issuesApi.getIssues(cleanedFilters),
         usersApi.getUsers(),
         tagsApi.getTags(),
+        epicsApi.getEpics(),
+        sprintsApi.getSprints(),
       ]);
 
       setIssues(issuesResponse.data || []);
@@ -99,6 +109,8 @@ export default function IssueListPage() {
       setCurrentPage(issuesResponse.pagination?.page || 1);
       setUsers(usersResponse.data || []);
       setTags(tagsResponse.data || []);
+      setEpics(epicsResponse.data || []);
+      setSprints(sprintsResponse.data || []);
     } catch (err) {
       console.error("Failed to fetch data:", err);
       const errorMessage = "Failed to load issues. Please try again.";
@@ -122,7 +134,7 @@ export default function IssueListPage() {
   };
 
   // Check if any filters are active
-  const hasActiveFilters = filters.search || filters.status || filters.assignedUserId || filters.tagId;
+  const hasActiveFilters = filters.search || filters.status || filters.assigned_user_id || filters.tag_id || filters.epic_id || filters.sprint_id;
 
   if (loading) {
     return (
@@ -164,7 +176,7 @@ export default function IssueListPage() {
           </div>
 
           {/* Filter selects */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Status filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
@@ -187,12 +199,55 @@ export default function IssueListPage() {
               </Select>
             </div>
 
+            {/* Epic filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Epic</label>
+              <Select
+                value={filters.epic_id}
+                onValueChange={(value) => updateFilters({ epic_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All epics" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All epics</SelectItem>
+                  {epics.map((epic) => (
+                    <SelectItem key={epic.id} value={epic.id.toString()}>
+                      {epic.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sprint filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sprint</label>
+              <Select
+                value={filters.sprint_id}
+                onValueChange={(value) => updateFilters({ sprint_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All sprints" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All sprints</SelectItem>
+                  <SelectItem value="backlog">Backlog</SelectItem>
+                  {sprints.map((sprint) => (
+                    <SelectItem key={sprint.id} value={sprint.id.toString()}>
+                      {sprint.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Assigned user filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Assigned User</label>
               <Select
-                value={filters.assignedUserId}
-                onValueChange={(value) => updateFilters({ assignedUserId: value })}
+                value={filters.assigned_user_id}
+                onValueChange={(value) => updateFilters({ assigned_user_id: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All users" />
@@ -216,8 +271,8 @@ export default function IssueListPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Tag</label>
               <Select
-                value={filters.tagId}
-                onValueChange={(value) => updateFilters({ tagId: value })}
+                value={filters.tag_id}
+                onValueChange={(value) => updateFilters({ tag_id: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All tags" />

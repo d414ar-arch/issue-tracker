@@ -111,6 +111,22 @@ export default function IssueCard({
               ))}
             </div>
           )}
+
+          {/* Epic + Sprint */}
+          {(issue.epic || issue.sprint) && (
+            <div className="flex flex-wrap gap-1">
+              {issue.epic && (
+                <Badge variant="outline" className="text-primary border-primary/40">
+                  {issue.epic.name}
+                </Badge>
+              )}
+              {issue.sprint && (
+                <Badge variant="outline" className="text-muted-foreground">
+                  {issue.sprint.name}
+                </Badge>
+              )}
+            </div>
+          )}
           
           {/* User info and metadata */}
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-sm text-muted-foreground">
