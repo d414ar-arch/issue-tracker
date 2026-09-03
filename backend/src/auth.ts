@@ -43,6 +43,11 @@ const authInstance = await betterAuth({
     apiKey({
       defaultPrefix: "issues_",
       enableMetadata: true,
+      rateLimit: {
+        enabled: true,
+        timeWindow: 1000 * 60 * 60 * 24,
+        maxRequests: 1000,
+      },
     }),
   ],
 });
